@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { Tones, type ToneContext } from "./tones"
 
+/** A fake BiquadFilterNode, good enough for timer/bookkeeping tests that
+ *  never inspect the filtered signal itself. */
+const fakeFilter = () => ({
+  type: "bandpass",
+  frequency: { value: 0 },
+  Q: { value: 0 },
+  connect: () => undefined,
+  disconnect: () => undefined,
+})
+
 describe("Tones", () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
@@ -15,6 +25,7 @@ describe("Tones", () => {
         return { frequency: { value: 0 }, connect: () => undefined, start: () => undefined, stop: () => undefined }
       },
       createGain: () => ({ gain: { value: 0 }, connect: () => undefined, disconnect: () => undefined }),
+      createBiquadFilter: fakeFilter,
       createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
       createBufferSource: () => ({ buffer: null, loop: false, connect: () => undefined, start: () => undefined, stop: () => undefined }),
     }
@@ -46,6 +57,7 @@ describe("Tones", () => {
         stop: () => { stopped.push(true) },
       }),
       createGain: () => ({ gain: { value: 0 }, connect: () => undefined, disconnect: () => undefined }),
+      createBiquadFilter: fakeFilter,
       createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
       createBufferSource: () => ({ buffer: null, loop: false, connect: () => undefined, start: () => undefined, stop: () => undefined }),
     }
@@ -62,6 +74,7 @@ describe("Tones", () => {
       sampleRate: 44100,
       createOscillator: () => ({ frequency: { value: 0 }, connect: () => undefined, start: () => undefined, stop: () => undefined }),
       createGain: () => ({ gain: { value: 0 }, connect: () => undefined, disconnect: () => undefined }),
+      createBiquadFilter: fakeFilter,
       createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
       createBufferSource: () => ({ buffer: null, loop: false, connect: () => undefined, start: () => undefined, stop: () => undefined }),
     }
@@ -71,5 +84,51 @@ describe("Tones", () => {
     // No exception, no auto-stop assertion needed here beyond: still safe to
     // silence at any point.
     expect(() => tones.silence()).not.toThrow()
+  })
+
+  it("silence() cancels pending handshake-stage timers, so no stage fires after hangup", () => {
+    const counts = { oscillatorsCreated: 0, noiseSourcesCreated: 0 }
+    const stoppedOscillators: boolean[] = []
+    const ctx: ToneContext = {
+      destination: {},
+      sampleRate: 44100,
+      createOscillator: () => {
+        counts.oscillatorsCreated++
+        return {
+          frequency: { value: 0 },
+          connect: () => undefined,
+          start: () => undefined,
+          stop: () => { stoppedOscillators.push(true) },
+        }
+      },
+      createGain: () => ({ gain: { value: 0 }, connect: () => undefined, disconnect: () => undefined }),
+      createBiquadFilter: fakeFilter,
+      createBuffer: () => ({ getChannelData: () => new Float32Array(1) }),
+      createBufferSource: () => {
+        counts.noiseSourcesCreated++
+        return { buffer: null, loop: false, connect: () => undefined, start: () => undefined, stop: () => undefined }
+      },
+    }
+
+    const tones = new Tones(() => ctx)
+    const onTrained = vi.fn()
+    tones.handshake(onTrained) // starts stage 1 (the answer tone) immediately
+    expect(counts.oscillatorsCreated).toBe(1)
+
+    // Hang up partway through stage 1, well before probing, training or the
+    // data/scrambler burst would ever start.
+    tones.silence()
+    const createdAtHangup = counts.oscillatorsCreated
+    const noiseAtHangup = counts.noiseSourcesCreated
+
+    // Advance well past the full handshake's worst-case length (8s+). If any
+    // stale stage timer survived silence(), it would create the probing
+    // tones, the training noise/tone, or the scrambler burst here — and it
+    // would call onTrained() a second time.
+    vi.advanceTimersByTime(15_000)
+
+    expect(counts.oscillatorsCreated).toBe(createdAtHangup)
+    expect(counts.noiseSourcesCreated).toBe(noiseAtHangup)
+    expect(onTrained).not.toHaveBeenCalled()
   })
 })

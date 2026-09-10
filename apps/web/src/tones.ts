@@ -1,12 +1,14 @@
-/** Western Electric call-progress tones, generated exactly.
+/** Western Electric call-progress tones, plus the connect handshake.
  *
- *  A 300-baud Bell 103 connection is a STEADY TONE, not a sweep. The famous
- *  rising warble everyone associates with modems is V.32bis/V.34, from 1993,
- *  a decade after this room — see spec 7.1. Bell 103 is two modems each
- *  holding a steady mark/space pair at the other: 2225/2025 Hz from the
- *  answering modem, 1270/1070 Hz from the originating modem. Both carriers
- *  are on the line together, so the caller hears them beat against each
- *  other — a rough, dissonant two-tone — not a chirp that climbs in pitch.
+ *  Historical note, and the decision on it: a real 1980 Bell 103 connection
+ *  is a STEADY tone, not a sweep — the famous rising screech everyone
+ *  associates with "a modem connecting" is V.32bis/V.34, from 1993, a decade
+ *  after this room is set. `carrier()` below still generates the honest
+ *  Bell 103 answer tone alone, for anyone who wants it. But the project
+ *  owner has decided, deliberately, that `handshake()` should play the
+ *  1990s negotiation screech instead, because that is what a visitor
+ *  actually recognises as "a modem connecting." This is an approved
+ *  anachronism. Do not revert it to steady Bell 103 tones.
  *
  *  These types describe only the slice of the WebAudio API this class uses.
  *  Production wires them to a real AudioContext (see `browserContext`
@@ -28,6 +30,18 @@ export interface ToneGain {
   disconnect(): void
 }
 
+export interface ToneBiquadFilter {
+  type: string
+  frequency: ToneAudioParam
+  Q: ToneAudioParam
+  connect(dest: unknown): unknown
+  disconnect(): void
+}
+
+/** Anything the handshake stages create that needs disconnecting when a
+ *  stage ends — a gain node or a filter node. */
+type ToneDisconnectable = ToneGain | ToneBiquadFilter
+
 export interface ToneAudioBuffer {
   getChannelData(channel: number): Float32Array
 }
@@ -45,6 +59,7 @@ export interface ToneContext {
   readonly sampleRate: number
   createOscillator(): ToneOscillator
   createGain(): ToneGain
+  createBiquadFilter(): ToneBiquadFilter
   createBuffer(numberOfChannels: number, length: number, sampleRate: number): ToneAudioBuffer
   createBufferSource(): ToneBufferSource
 }
@@ -56,9 +71,21 @@ function browserContext(): ToneContext {
   return new AudioContext() as unknown as ToneContext
 }
 
+/** Fisher-Yates, for randomising the probing-tone sequence per call. */
+function shuffled<T>(items: readonly T[]): T[] {
+  const a = [...items]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = a[i] as T
+    a[i] = a[j] as T
+    a[j] = tmp
+  }
+  return a
+}
+
 export class Tones {
   private ctx: ToneContext | null = null
-  private nodes: ToneGain[] = []
+  private nodes: ToneDisconnectable[] = []
   private running: (ToneOscillator | ToneBufferSource)[] = []
   private timers: ReturnType<typeof setTimeout>[] = []
   private generation = 0
@@ -93,9 +120,27 @@ export class Tones {
     })
   }
 
-  /** A short loop of white noise, filtered only by ear — authentic line
-   *  hiss, not a synthesized whoosh. */
-  private noise(gain: number): ToneBufferSource {
+  /** A single tone: oscillator plus its own gain, both tracked in
+   *  `running`/`nodes` (so a plain `silence()` always catches it) and also
+   *  handed back so a handshake stage can stop precisely this tone when the
+   *  stage ends, without tearing down everything else. */
+  private makeTone(freq: number, gain: number): { osc: ToneOscillator; gain: ToneGain } {
+    const ctx = this.context()
+    const osc = ctx.createOscillator()
+    const g = ctx.createGain()
+    osc.frequency.value = freq
+    g.gain.value = gain
+    osc.connect(g)
+    g.connect(ctx.destination)
+    this.nodes.push(g)
+    this.running.push(osc)
+    return { osc, gain: g }
+  }
+
+  /** Two seconds of looping white noise, raw — the shared source buffer
+   *  used both for authentic line hiss and for the handshake's filtered
+   *  noise stages. */
+  private makeNoiseSource(): ToneBufferSource {
     const ctx = this.context()
     const length = Math.floor(ctx.sampleRate * 2)
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
@@ -104,6 +149,14 @@ export class Tones {
     const src = ctx.createBufferSource()
     src.buffer = buffer
     src.loop = true
+    return src
+  }
+
+  /** A short loop of white noise, filtered only by ear — authentic line
+   *  hiss, not a synthesized whoosh. */
+  private noise(gain: number): ToneBufferSource {
+    const ctx = this.context()
+    const src = this.makeNoiseSource()
     const g = ctx.createGain()
     g.gain.value = gain
     src.connect(g)
@@ -113,56 +166,207 @@ export class Tones {
     return src
   }
 
+  /** Noise through a single bandpass filter — the "training" stage's
+   *  warble, narrow-Q at first and widened over time by adjusting `filter`
+   *  directly. `filters` is just `[filter]`, handed back so `stopStage` can
+   *  disconnect it the same way it disconnects everything else. */
+  private makeFilteredNoise(
+    gain: number, centerFreq: number, q: number,
+  ): { src: ToneBufferSource; gainNode: ToneGain; filter: ToneBiquadFilter; filters: ToneBiquadFilter[] } {
+    const ctx = this.context()
+    const src = this.makeNoiseSource()
+    const filter = ctx.createBiquadFilter()
+    filter.type = "bandpass"
+    filter.frequency.value = centerFreq
+    filter.Q.value = q
+    const g = ctx.createGain()
+    g.gain.value = gain
+    src.connect(filter)
+    filter.connect(g)
+    g.connect(ctx.destination)
+    this.nodes.push(g, filter)
+    this.running.push(src)
+    return { src, gainNode: g, filter, filters: [filter] }
+  }
+
+  /** Noise through a highpass+lowpass pair, limiting it to telephone
+   *  bandwidth — the "data/scrambler" burst. */
+  private makeBandlimitedNoise(
+    gain: number, lowHz: number, highHz: number,
+  ): { src: ToneBufferSource; gainNode: ToneGain; filters: ToneBiquadFilter[] } {
+    const ctx = this.context()
+    const src = this.makeNoiseSource()
+    const hp = ctx.createBiquadFilter()
+    hp.type = "highpass"
+    hp.frequency.value = lowHz
+    const lp = ctx.createBiquadFilter()
+    lp.type = "lowpass"
+    lp.frequency.value = highHz
+    const g = ctx.createGain()
+    g.gain.value = gain
+    src.connect(hp)
+    hp.connect(lp)
+    lp.connect(g)
+    g.connect(ctx.destination)
+    this.nodes.push(g, hp, lp)
+    this.running.push(src)
+    return { src, gainNode: g, filters: [hp, lp] }
+  }
+
+  /** Stops exactly the given oscillators/sources and disconnects exactly
+   *  the given nodes, and untracks them — used to end one handshake stage
+   *  without touching whatever the next stage is about to start. A plain
+   *  `silence()` remains the blanket safety net: it still stops and
+   *  disconnects everything still tracked, whatever stage it catches. */
+  private stopStage(playing: (ToneOscillator | ToneBufferSource)[], nodes: ToneDisconnectable[]): void {
+    for (const o of playing) o.stop()
+    for (const n of nodes) n.disconnect()
+    this.running = this.running.filter(o => !playing.includes(o))
+    this.nodes = this.nodes.filter(n => !nodes.includes(n))
+  }
+
   dialTone(): void { this.silence(); this.pair(350, 440).forEach(o => o.start()) }
 
   ringback(): void { this.cadence(() => this.pair(440, 480), 2000, 4000) }
 
   busy(): void { this.cadence(() => this.pair(480, 620), 500, 500) }
 
-  /** Bell 103 answer tone alone. One frequency, no modulation. Kept for
-   *  callers that just want the raw answer tone; `handshake()` is the full
-   *  connect sequence. */
+  /** Bell 103 answer tone alone. One frequency, no modulation, no
+   *  negotiation. The historically accurate sound — kept as a primitive,
+   *  but `handshake()` is what actually plays on connect now. */
   carrier(): void { this.silence(); this.pair(2225, 2225, 0.06).forEach(o => o.start()) }
 
-  /** The connect sequence: the far end's answer tone, then — a beat later —
-   *  the originate carrier joining so both hold steady and beat against
-   *  each other. Occasionally, authentically, the two sides fail to train
-   *  and the line drops to no carrier; `onTrained` is how that gets told to
-   *  the caller instead of being silently swallowed. */
+  /** The connect sequence: a V.32bis/V.34-style negotiation ritual, the
+   *  screech everyone recognises as "a modem connecting" (see the file
+   *  header — this is a deliberate anachronism for a 1980-set room).
+   *  Stages, back to back:
+   *
+   *   1. Answer tone: ~2100 Hz, 1.5-2.5s, with a click every ~450ms (a
+   *      brief gain dip) standing in for the phase reversals that disabled
+   *      echo cancellers on the real thing.
+   *   2. Probing/ranging tones: a randomised handful of discrete tones
+   *      across 300-3000 Hz, 80-200ms each — the "doo-doo-dee" part.
+   *   3. Training: bandpass-filtered noise plus a warbling tone, ~1.4-1.9s,
+   *      with the band widening (filter Q dropping) over several steps.
+   *   4. Data/scrambler: a loud burst of noise bandlimited to telephone
+   *      bandwidth (300-3400 Hz), ~1-1.5s — the "shhhhhh" climax.
+   *   5. Silence: everything stops. On a real modem, the sound stopping is
+   *      how you knew you were connected, so this is not optional.
+   *
+   *  Occasionally, authentically, negotiation fails partway through
+   *  training and the line drops to no carrier; `onTrained` is how that's
+   *  told to the caller instead of being silently swallowed. */
   handshake(onTrained?: (trained: boolean) => void): void {
     this.silence()
     const gen = this.generation
 
-    const answerFreq = 2225 + this.detuneHz
-    const originateFreq = 1270 + this.detuneHz * 0.7
-
-    this.pair(answerFreq, answerFreq, 0.06).forEach(o => o.start())
+    const schedule = (ms: number, fn: () => void): void => {
+      const t = setTimeout(() => { if (gen === this.generation) fn() }, ms)
+      this.timers.push(t)
+    }
 
     const failsToTrain = Math.random() < 0.04
-    const joinDelayMs = 400 + Math.random() * 300
+    const noiseLevel = 0.05 + Math.random() * 0.04 // randomised per call
 
-    const joinTimer = setTimeout(() => {
-      if (gen !== this.generation) return
+    // ---- Stage 1: answer tone, with periodic "phase inversion" clicks ----
+    const ANSWER_GAIN = 0.07
+    const answerFreq = 2100 + this.detuneHz
+    const answerDurationMs = 1500 + Math.random() * 1000 // 1.5-2.5s
+    const { osc: answerOsc, gain: answerGain } = this.makeTone(answerFreq, ANSWER_GAIN)
+    answerOsc.start()
 
-      if (failsToTrain) {
+    const CLICK_INTERVAL_MS = 450
+    const CLICK_DIP_MS = 20
+    for (let t = CLICK_INTERVAL_MS; t < answerDurationMs; t += CLICK_INTERVAL_MS) {
+      schedule(t, () => { answerGain.gain.value = 0.001 })
+      schedule(t + CLICK_DIP_MS, () => { answerGain.gain.value = ANSWER_GAIN })
+    }
+    schedule(answerDurationMs, () => this.stopStage([answerOsc], [answerGain]))
+
+    // ---- Stage 2: probing/ranging tones, "doo-doo-dee" ----
+    const PROBE_POOL = [300, 500, 700, 900, 1100, 1300, 1600, 1900, 2200, 2500, 2800, 3000]
+    const PROBE_GAIN = 0.06
+    const PROBE_GAP_MS = 15
+    const probeCount = 6 + Math.floor(Math.random() * 4) // 6-9 tones, randomised per call
+    const probeSeq = shuffled(PROBE_POOL).slice(0, probeCount)
+
+    let probeOffset = answerDurationMs
+    for (const freq of probeSeq) {
+      const duration = 80 + Math.random() * 120 // 80-200ms
+      const start = probeOffset
+      schedule(start, () => {
+        const { osc, gain } = this.makeTone(freq + this.detuneHz, PROBE_GAIN)
+        osc.start()
+        schedule(duration, () => this.stopStage([osc], [gain]))
+      })
+      probeOffset += duration + PROBE_GAP_MS
+    }
+    const probingEndMs = probeOffset
+
+    // ---- Stage 3: training — bandpass noise + warbling tone, band widening
+    const trainingStartMs = probingEndMs
+    const trainingDurationMs = 1400 + Math.random() * 500 // 1.4-1.9s
+    const TRAIN_STEPS = 5
+    const stepMs = trainingDurationMs / TRAIN_STEPS
+    const trainCenter = 1700 + this.detuneHz
+
+    let trainNoise: { src: ToneBufferSource; gainNode: ToneGain; filter: ToneBiquadFilter; filters: ToneBiquadFilter[] } | null = null
+    let trainTone: { osc: ToneOscillator; gain: ToneGain } | null = null
+
+    schedule(trainingStartMs, () => {
+      trainNoise = this.makeFilteredNoise(noiseLevel, trainCenter, 8)
+      trainNoise.src.start()
+      trainTone = this.makeTone(trainCenter, 0.04)
+      trainTone.osc.start()
+    })
+
+    for (let i = 1; i <= TRAIN_STEPS; i++) {
+      const at = trainingStartMs + stepMs * i
+      const q = Math.max(1, 8 - i * 1.5) // widening band as training proceeds
+      const center = trainCenter + (Math.random() * 400 - 200)
+      schedule(at, () => {
+        if (trainNoise !== null) {
+          trainNoise.filter.frequency.value = center
+          trainNoise.filter.Q.value = q
+        }
+        if (trainTone !== null) trainTone.osc.frequency.value = center
+      })
+    }
+
+    // Occasionally, authentically, the two sides fail to train partway
+    // through and the line drops to no carrier — not silently, `onTrained`
+    // tells the caller. Decided once, up front, so it's this call's fate
+    // from the start rather than a decision made mid-stage.
+    if (failsToTrain) {
+      const failAtMs = trainingStartMs + trainingDurationMs * (0.4 + Math.random() * 0.35)
+      schedule(failAtMs, () => {
         this.silence()
         onTrained?.(false)
-        return
-      }
+      })
+      return
+    }
 
-      this.pair(originateFreq, originateFreq, 0.05).forEach(o => o.start())
+    schedule(trainingStartMs + trainingDurationMs, () => {
+      if (trainNoise !== null) this.stopStage([trainNoise.src], [trainNoise.gainNode, ...trainNoise.filters])
+      if (trainTone !== null) this.stopStage([trainTone.osc], [trainTone.gain])
+    })
 
-      // Ambience for the rest of the call: faint hiss always, occasional
-      // faint crosstalk from a neighbouring pair.
-      this.noise(0.002 + Math.random() * 0.006).start()
-      if (Math.random() < 0.3) {
-        this.pair(1000 + Math.random() * 400, 1000 + Math.random() * 400, 0.004)
-          .forEach(o => o.start())
-      }
+    // ---- Stage 4: data/scrambler — loud noise, bandlimited to telephone bandwidth
+    const dataStageStartMs = trainingStartMs + trainingDurationMs
+    const dataStageDurationMs = 1000 + Math.random() * 500 // 1-1.5s
+    const scramblerGain = 0.09 + Math.random() * 0.05 // randomised noise level
 
+    let scrambler: { src: ToneBufferSource; gainNode: ToneGain; filters: ToneBiquadFilter[] } | null = null
+    schedule(dataStageStartMs, () => {
+      scrambler = this.makeBandlimitedNoise(scramblerGain, 300, 3400)
+      scrambler.src.start()
+    })
+
+    // ---- Stage 5: silence — connected, and the speaker mutes ----
+    schedule(dataStageStartMs + dataStageDurationMs, () => {
+      if (scrambler !== null) this.stopStage([scrambler.src], [scrambler.gainNode, ...scrambler.filters])
       onTrained?.(true)
-    }, joinDelayMs)
-    this.timers.push(joinTimer)
+    })
   }
 
   /** The FSK burble while bytes flow: the originate carrier shifting
@@ -220,8 +424,8 @@ export class Tones {
     // Tracked rather than guarded: stopping an already-stopped oscillator
     // throws by specification, and an empty catch is forbidden here. Nodes
     // are removed from `running` the moment they're stopped elsewhere (see
-    // `cadence` and `data`), so anything still in `running` here is still
-    // actually running.
+    // `cadence`, `data` and `stopStage`), so anything still in `running`
+    // here is still actually running.
     for (const o of this.running) o.stop()
     for (const n of this.nodes) n.disconnect()
     this.running = []
