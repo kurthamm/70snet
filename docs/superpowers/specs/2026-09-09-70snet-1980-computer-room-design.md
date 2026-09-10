@@ -555,6 +555,17 @@ remembers is V.32/V.34, from a decade later. Bell 103 is two modems holding
 steady tones at each other. This is the single most likely anachronism to creep
 in by instinct, and getting it right is worth more than any other sound here.
 
+**The call goes silent once it connects.** This is the part most people
+actually remember, and it is easy to get wrong by building a soundtrack. The
+visitor flips the modem to DATA and puts the handset back on the cradle, which
+cuts the audio path — and the rest of the call is silent. Later modems muted
+their speaker at carrier detect for the same reason. **The sound stopping is
+how you know you are connected.**
+
+The 300-baud FSK burble is therefore audible only in the seconds between the
+carrier appearing and the handset going down. Dawdle before flipping to DATA
+and you hear the data; hang up and it cuts. It is a window, not a bed.
+
 **The machine.** The Disk II head recalibration knock on boot — the drive
 banging the head against its stop — then motor whirr and seek chatter. The
 Apple's own speaker, which the emulator already produces.
@@ -603,8 +614,8 @@ call is a sequence of physical acts, each taking the time it took.
 3. **Listen** — ringback, or a busy signal, or nothing at all if the far end
    is down (§10)
 4. **The far end answers** — the 2225 Hz carrier appears in the handset
-5. **Flip the modem to DATA**, and replace the handset
-6. **Connected.** Bytes flow at 300 baud (§4.3)
+5. **Flip the modem to DATA**, and replace the handset — **the audio cuts**
+6. **Connected**, and silent. Bytes flow at 300 baud (§4.3)
 
 Hanging up is the reverse: the modem to VOICE, or lifting and replacing the
 handset, and carrier drops.
