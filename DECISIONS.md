@@ -82,3 +82,38 @@ unfamiliar truth. It is disclosed in the anachronism register (§9) rather than
 smuggled in, and everything around it stays honest — the call-progress tones are
 the real Western Electric frequencies, the line really runs at 300 baud, and the
 sound still stops dead at connect, which the 1990s modems also did.
+
+## 2026-09-10 — Everything runs on one host
+
+**Decision.** The room page, the Apple II emulator and the telephone exchange
+are served by a single process on one machine, behind one Cloudflare tunnel.
+Nothing is on a CDN or a serverless platform.
+
+**Why.** The interesting half of this project cannot be serverless. A call is a
+WebSocket held open for as long as the visitor stays on the board. The busy
+signal is in-memory state — the exchange knows CBBS's one line is taken because
+it is one process that remembers, and spread across functions there is no
+"taken". And the message base is a disk image that must survive between
+callers, written by a compiled emulator holding FIFOs.
+
+The static half could have gone to a CDN, and briefly the plan was to split it.
+Splitting bought a faster first paint for a page nobody is waiting on, and cost
+a second deploy target, a cross-origin WebSocket, and an exchange URL to keep
+in sync. Serving both from one origin means the page dials the host that served
+it and there is nothing to configure.
+
+## 2026-09-10 — Mothballed here, deliberately
+
+**Decision.** Work stopped with Plan A complete and Plan B two tasks in.
+
+**Why.** Recorded so the next person does not mistake the stopping point for a
+natural seam. It is not one: the machines can dial a bulletin board but have
+nothing to put in the drive, because the media subsystem is Plan B. An Apple II
+with an empty drive and no box of diskettes is a machine you can only make one
+phone call from.
+
+The next task is Plan B task 3, the drive. The seam it needs is verified and
+recorded in the plan: `passSetDriveNewData` puts a disk in, `doSetUIDriveProps`
+reports when the Apple writes, and `DriveProps` already carries
+`isWriteProtected` and `diskHasChanges` — so the write-protect notch and the
+write-back are the emulator's own behaviour rather than something to simulate.

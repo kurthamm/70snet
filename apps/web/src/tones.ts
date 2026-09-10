@@ -71,6 +71,16 @@ function browserContext(): ToneContext {
   return new AudioContext() as unknown as ToneContext
 }
 
+/** Standard DTMF (touch-tone) frequency pairs: one low-group and one
+ *  high-group frequency per key, on a real Western Electric touch-tone
+ *  keypad (spec: the touch-tone keypad's own table, not a rotary dial). */
+const DTMF_FREQUENCIES: Record<string, [number, number]> = {
+  "1": [697, 1209], "2": [697, 1336], "3": [697, 1477],
+  "4": [770, 1209], "5": [770, 1336], "6": [770, 1477],
+  "7": [852, 1209], "8": [852, 1336], "9": [852, 1477],
+  "*": [941, 1209], "0": [941, 1336], "#": [941, 1477],
+}
+
 /** Fisher-Yates, for randomising the probing-tone sequence per call. */
 function shuffled<T>(items: readonly T[]): T[] {
   const a = [...items]
@@ -405,6 +415,33 @@ export class Tones {
     this.dataTimer = setInterval(() => {
       osc.frequency.value = Math.random() < 0.5 ? mark : space
     }, bitMs)
+  }
+
+  /** One DTMF key press: its true low-group/high-group pair, generated with
+   *  oscillators (never sampled), for roughly 70-120ms -- the length a real
+   *  touch-tone keypad holds a key's tone. Cuts whatever else is playing
+   *  first, the same as a real phone's dial tone dropping the instant the
+   *  first key is pressed. */
+  dtmf(key: string): void {
+    const freqs = DTMF_FREQUENCIES[key]
+    if (freqs === undefined) throw new Error(`not a DTMF key: ${key}`)
+
+    this.silence()
+    const gen = this.generation
+
+    const [low, high] = freqs
+    const lowTone = this.makeTone(low, 0.1)
+    const highTone = this.makeTone(high, 0.1)
+    lowTone.osc.start()
+    highTone.osc.start()
+
+    const durationMs = 70 + Math.random() * 50 // 70-120ms
+    const t = setTimeout(() => {
+      if (gen === this.generation) {
+        this.stopStage([lowTone.osc, highTone.osc], [lowTone.gain, highTone.gain])
+      }
+    }, durationMs)
+    this.timers.push(t)
   }
 
   silence(): void {

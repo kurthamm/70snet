@@ -2,6 +2,7 @@
  *  `ROOM_1980` -- picking a room from a URL, a room list, etc. is future
  *  work; this file just wires the one room this build ships (spec §3). */
 
+import "./style.css"
 import { ROOM_1980 } from "@70snet/registry/data/rooms"
 import { DESTINATIONS } from "@70snet/registry/data/destinations"
 import { renderRoom } from "./room"

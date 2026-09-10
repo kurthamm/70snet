@@ -2,6 +2,10 @@ import type { ServerMessage } from "@70snet/protocol/client"
 
 const PULSE_MS = 100        // 10 pulses per second
 const INTERDIGIT_MS = 700
+// A touch-tone key is a tone and a gap, not a count of pulses. Roughly a
+// fifth of a second, against 1.7s for a rotary "0" -- which is the whole
+// reason Touch-Tone sold.
+const TOUCH_TONE_MS = 200
 
 export type PhoneState =
   | "on-hook" | "dial-tone" | "dialing" | "dialled"
@@ -16,6 +20,11 @@ export interface TonePlayer {
   /** The FSK burble while bytes flow. Only audible in the brief window
    *  between carrier-up and the handset going down — see `flipToData`. */
   data(active: boolean): void
+  /** One touch-tone keypress: its true DTMF pair, briefly. Purely audible
+   *  feedback for the keypad -- it plays independent of `dial`'s own pulse
+   *  timing, which still governs when a manually-dialled number actually
+   *  completes. */
+  dtmf(key: string): void
 }
 
 export class Telephone {
@@ -23,7 +32,12 @@ export class Telephone {
 
   constructor(private readonly opts: {
     tones: TonePlayer
-    dialing: "manual" | "hayes-at"
+    /** How this machine's modem is dialled, which decides what the visitor
+   *  physically does and how long it takes:
+   *    "rotary"     a dial that returns at ten pulses per second
+   *    "touch-tone" a keypad, a tone per key
+   *    "hayes-at"   1981+, the modem dials itself and there is no handset */
+  dialing: "rotary" | "touch-tone" | "hayes-at"
   }) {}
 
   get state(): PhoneState { return this._state }
@@ -65,7 +79,11 @@ export class Telephone {
 
     this._state = "dialing"
     this.opts.tones.silence()
-    await sleep(n * PULSE_MS + INTERDIGIT_MS)
+    await sleep(
+      this.opts.dialing === "touch-tone"
+        ? TOUCH_TONE_MS
+        : n * PULSE_MS + INTERDIGIT_MS,
+    )
     this._state = "dialled"
   }
 

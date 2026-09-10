@@ -1,14 +1,15 @@
 <!doctype html>
 <html lang="en">
   <!--
-    data-exchange-url: the switchboard's WebSocket address, e.g.
-    ws://localhost:8080. The switchboard (apps/switchboard) is a separate
-    process, started independently and not built by this page, so its
-    address is deployment configuration, not something this file can know
-    in advance. Set this attribute (by templating it at deploy time, or by
-    hand for local development) to wherever that switchboard is actually
-    listening. Left unset, room.ts fails loudly, not silently, the moment a
-    visitor tries to dial (see webSocketExchangeConnector in src/room.ts).
+    data-exchange-url: an override for the switchboard's WebSocket address.
+    In deployment, the switchboard (apps/switchboard) serves this very page
+    -- one host, one Cloudflare tunnel, same origin for the room and the
+    exchange -- so by default room.ts derives the address itself: same
+    host, same port, ws:/wss: matching the page's own protocol (see
+    webSocketExchangeConnector in src/room.ts). That is the correct default,
+    not a fallback hiding a missing value. Set this attribute only for local
+    development, e.g. running `vite` for the page while a switchboard
+    listens on a different port (ws://localhost:8080).
   -->
   <head>
     <meta charset="UTF-8" />

@@ -18,6 +18,12 @@
     },
     {
       "path": "packages/cbbs-host"
+    },
+    {
+      "path": "packages/media"
+    },
+    {
+      "path": "packages/storage"
     }
   ]
 }

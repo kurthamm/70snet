@@ -1,8 +1,9 @@
 import { WebSocketServer, type WebSocket } from "ws"
 import { randomUUID } from "node:crypto"
-import { mkdtemp } from "node:fs/promises"
+import { createServer, type IncomingMessage, type Server as HttpServer } from "node:http"
+import { mkdtemp, stat, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, normalize, sep, extname } from "node:path"
 import { Exchange } from "@70snet/exchange/exchange"
 import type { LineInterface } from "@70snet/exchange/line"
 import { CbbsHost } from "@70snet/cbbs-host/host"
@@ -12,6 +13,107 @@ import { DESTINATIONS } from "@70snet/registry/data/destinations"
 import { ROOM_1980 } from "@70snet/registry/data/rooms"
 
 const BITS_PER_CHAR = 10 // 8N1
+
+/** Content-Type by extension for the handful of file types the room page
+ *  and the Apple II emulator's built assets actually use. Anything not
+ *  listed here is served as `application/octet-stream` -- a correct,
+ *  conservative default for an unrecognized binary extension (disk images,
+ *  emulator ROM/symbol files), not a masked error: the byte content is
+ *  still served correctly, only the advertised type is generic. */
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".wasm": "application/wasm",
+  ".map": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".mp3": "audio/mpeg",
+}
+
+/** Resolve a request path against `root`, refusing anything that would
+ *  escape it (`..`, absolute-path tricks, percent-encoded traversal). A
+ *  path that escapes the root is a 403, not something silently clamped
+ *  back inside it -- clamping would serve a *different*, unrequested file
+ *  under the visitor's nose. Returns `null` for a path the caller should
+ *  reject as forbidden. */
+function resolveWithinRoot(root: string, requestPath: string): string | null {
+  const withoutQuery = requestPath.split(/[?#]/)[0] as string
+  const decoded = decodeURIComponent(withoutQuery)
+  // Strip only the leading slash(es) -- not normalize()d against a virtual
+  // "/" first, which would silently clamp a "../../../etc/passwd" request
+  // back inside root and hand it a 404 indistinguishable from a genuine
+  // missing file. Instead join the (still relative) request path onto the
+  // real root and normalize *that*, so a genuine escape attempt produces a
+  // path outside root -- caught below and reported as the 403 it is, not
+  // masked as a 404.
+  const relative = decoded.replace(/^\/+/, "")
+  const full = normalize(join(root, relative))
+  const rootWithSep = root.endsWith(sep) ? root : root + sep
+  if (full !== root && !full.startsWith(rootWithSep)) return null
+  return full
+}
+
+/** Serve one file out of `root`, or the 404/403 that fits what happened.
+ *  Directories fall back to `index.html` inside them (so `/` and
+ *  `/apple2ts/` resolve the way a static host resolves them); a directory
+ *  with no `index.html` is a 404, not a directory listing. */
+async function serveStatic(
+  root: string,
+  requestPath: string,
+  res: import("node:http").ServerResponse
+): Promise<void> {
+  let target: string | null
+  try {
+    target = resolveWithinRoot(root, requestPath)
+  } catch {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" })
+    res.end("400 Bad Request: malformed URL")
+    return
+  }
+  if (target === null) {
+    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" })
+    res.end("403 Forbidden: path escapes site root")
+    return
+  }
+
+  try {
+    let info = await stat(target)
+    if (info.isDirectory()) {
+      target = join(target, "index.html")
+      info = await stat(target)
+    }
+    if (!info.isFile()) {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" })
+      res.end("404 Not Found")
+      return
+    }
+    const body = await readFile(target)
+    const type = MIME_TYPES[extname(target).toLowerCase()] ?? "application/octet-stream"
+    res.writeHead(200, { "Content-Type": type, "Content-Length": body.length })
+    res.end(body)
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" })
+      res.end("404 Not Found")
+      return
+    }
+    // A real I/O failure (permissions, etc.) is reported, not swallowed as
+    // a 404 that would hide what actually went wrong.
+    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" })
+    res.end(`500 Internal Server Error: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
 
 /** Runtime validation of what a client actually sent -- `JSON.parse` only
  *  proves the bytes were JSON, not that they are a `ClientMessage`. A caller
@@ -44,7 +146,32 @@ export async function createSwitchboard(opts: { port: number }) {
     hosts: { get: id => (id === "cbbs-host" ? cbbs : undefined) },
   })
 
-  const wss = new WebSocketServer({ port: opts.port })
+  // The room page and the exchange share one origin and one port (spec:
+  // single host, single Cloudflare tunnel). `noServer: true` keeps the
+  // WebSocketServer from binding its own listener; the HTTP server below
+  // owns the socket and hands upgrade requests to it explicitly.
+  const wss = new WebSocketServer({ noServer: true })
+  const webDistDir = new URL("../../web/dist", import.meta.url).pathname
+  const apple2tsDistDir = new URL("../../../vendor/apple2ts/dist", import.meta.url).pathname
+  const APPLE2TS_PREFIX = "/apple2ts/"
+
+  const httpServer: HttpServer = createServer((req, res) => {
+    void (async () => {
+      const requestPath = req.url ?? "/"
+      if (requestPath === "/apple2ts" || requestPath.startsWith(APPLE2TS_PREFIX)) {
+        const rest = requestPath === "/apple2ts" ? "/" : requestPath.slice(APPLE2TS_PREFIX.length - 1)
+        await serveStatic(apple2tsDistDir, rest, res)
+        return
+      }
+      await serveStatic(webDistDir, requestPath, res)
+    })()
+  })
+
+  httpServer.on("upgrade", (req: IncomingMessage, socket, head) => {
+    wss.handleUpgrade(req, socket, head, ws => {
+      wss.emit("connection", ws, req)
+    })
+  })
 
   wss.on("connection", (ws: WebSocket) => {
     const callerId = randomUUID()
@@ -130,10 +257,11 @@ export async function createSwitchboard(opts: { port: number }) {
   })
 
   await new Promise<void>((resolve, reject) => {
-    wss.once("listening", () => resolve())
-    wss.once("error", reject)
+    httpServer.once("listening", () => resolve())
+    httpServer.once("error", reject)
+    httpServer.listen(opts.port)
   })
-  const address = wss.address()
+  const address = httpServer.address()
   if (address === null || typeof address === "string") {
     throw new Error("switchboard did not bind a TCP port")
   }
@@ -142,6 +270,9 @@ export async function createSwitchboard(opts: { port: number }) {
     port: address.port,
     async close() {
       await new Promise<void>(res => wss.close(() => res()))
+      await new Promise<void>((resolve, reject) => {
+        httpServer.close(err => (err ? reject(err) : resolve()))
+      })
       await cbbs.stop()
     },
   }
