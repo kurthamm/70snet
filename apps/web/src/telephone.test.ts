@@ -21,7 +21,7 @@ describe("Telephone", () => {
   afterEach(() => vi.useRealTimers())
 
   it("takes real time to dial, one pulse per digit at 10 pulses per second", async () => {
-    const t = new Telephone({ tones: silentTones, dialing: "manual" })
+    const t = new Telephone({ tones: silentTones, dialing: "touch-tone" })
     t.lift()
     const done = t.dial("0")            // 10 pulses + interdigit pause
     vi.advanceTimersByTime(999)
@@ -32,7 +32,7 @@ describe("Telephone", () => {
   })
 
   it("refuses to dial with the handset down", async () => {
-    const t = new Telephone({ tones: silentTones, dialing: "manual" })
+    const t = new Telephone({ tones: silentTones, dialing: "touch-tone" })
     await expect(t.dial("5")).rejects.toThrow(/handset is down/)
   })
 
@@ -44,7 +44,7 @@ describe("Telephone", () => {
   })
 
   it("plays the busy signal and clears the call", () => {
-    const t = new Telephone({ tones: silentTones, dialing: "manual" })
+    const t = new Telephone({ tones: silentTones, dialing: "touch-tone" })
     t.lift()
     t.hear({ kind: "busy" })
     expect(silentTones.busy).toHaveBeenCalled()
@@ -53,7 +53,7 @@ describe("Telephone", () => {
 
   it("on connect, runs the handshake and starts the data burble once trained", () => {
     const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
-    const t = new Telephone({ tones, dialing: "manual" })
+    const t = new Telephone({ tones, dialing: "touch-tone" })
     t.lift()
     t.hear({ kind: "connected", baud: 300 })
     expect(t.state).toBe("connected")
@@ -63,7 +63,7 @@ describe("Telephone", () => {
 
   it("drops to no carrier, told honestly, when the handshake fails to train", () => {
     const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(false)) })
-    const t = new Telephone({ tones, dialing: "manual" })
+    const t = new Telephone({ tones, dialing: "touch-tone" })
     t.lift()
     t.hear({ kind: "connected", baud: 300 })
     expect(t.state).toBe("on-hook")
@@ -73,7 +73,7 @@ describe("Telephone", () => {
 
   it("flipping to DATA cuts the audio without ending the call", () => {
     const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
-    const t = new Telephone({ tones, dialing: "manual" })
+    const t = new Telephone({ tones, dialing: "touch-tone" })
     t.lift()
     t.hear({ kind: "connected", baud: 300 })
     t.flipToData()
@@ -83,7 +83,7 @@ describe("Telephone", () => {
 
   it("flipping back to VOICE mid-call resumes the burble without ending the call", () => {
     const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
-    const t = new Telephone({ tones, dialing: "manual" })
+    const t = new Telephone({ tones, dialing: "touch-tone" })
     t.lift()
     t.hear({ kind: "connected", baud: 300 })
     t.flipToData()
@@ -95,7 +95,7 @@ describe("Telephone", () => {
 
   it("flipping back to VOICE off a call is just silence, not a resumed burble", () => {
     const tones = freshTones()
-    const t = new Telephone({ tones, dialing: "manual" })
+    const t = new Telephone({ tones, dialing: "touch-tone" })
     t.flipToVoice()
     expect(t.state).toBe("on-hook")
     expect(tones.silence).toHaveBeenCalled()

@@ -15,7 +15,7 @@ export const ROOM_1980: Room = {
       modem: {
         id: "micromodem2",
         name: "Micromodem II",
-        dialing: "manual",
+        dialing: "touch-tone",
         speeds: [300],
       },
       drives: [

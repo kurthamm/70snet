@@ -461,7 +461,7 @@ function renderTelephone(
   dialPad.className = "rotary-dial"
   dialPad.setAttribute("data-rotary-dial", "")
 
-  if (machine.modem.dialing === "manual") {
+  if (machine.modem.dialing !== "hayes-at") {
     // A standard touch-tone keypad: 1-2-3 / 4-5-6 / 7-8-9 / *-0-#. Every key
     // plays its true DTMF pair the instant it's pressed -- that's pure
     // audible feedback (`tones.dtmf`) and happens independent of whether

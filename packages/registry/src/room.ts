@@ -4,7 +4,7 @@ export interface MachineSpec {
   emulator: "apple2ts"
   /** Museum card text shown beside the machine (spec 4.1, 6.4). */
   card: string
-  modem: { id: string; name: string; dialing: "manual" | "hayes-at"; speeds: number[] }
+  modem: { id: string; name: string; dialing: "rotary" | "touch-tone" | "hayes-at"; speeds: number[] }
   drives: { slot: number; drive: number }[]
 }
 
