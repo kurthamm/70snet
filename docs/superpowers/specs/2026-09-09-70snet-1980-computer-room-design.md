@@ -105,6 +105,18 @@ layer completely before the others is the wrong order.
 - Machine-to-machine calls: XMODEM disk transfer between two visitors
 - Persistent messages: what a visitor posts is still there tomorrow
 
+**v1 is delivered in two plans, and the split is deliberate.** Each has to
+produce working software on its own, which one combined plan could not:
+
+- **Plan A — the phone call.** The room, the Apple II+, the exchange, CBBS,
+  the telephone, and the busy signal. Everything above except the media items.
+- **Plan B — the disk box.** §6 in full: media, drives, browser storage,
+  uploads, export/import, and disk transfer between visitors.
+
+Plan A carries the deepest unknowns and goes first. Plan A also builds §6.4's
+grinding empty drive, because that belongs to the machine rather than to the
+box — but nothing in Plan A can put a diskette in it.
+
 **Explicitly deferred:** the other five machines; Telenet and Tymnet;
 CompuServe, The Source, Dow Jones; cassette loading; the Epson MX-80 printer;
 VisiCalc and other application software; additional rooms; visitors sharing
