@@ -60,3 +60,25 @@ thinks it is.
 
 Filtering at image-build time keeps CBBS unmodified and makes the timeline a
 property of the disk, which is where it lived in reality.
+
+## 2026-09-10 — The modem screech is the 1990s one, on purpose
+
+**Decision.** The connect sound is a V.32bis/V.34-style handshake, not the Bell
+103 carrier a 1980 call actually produced.
+
+**Why.** Bell 103 had nothing to negotiate — both ends knew they were 300 baud,
+so the answering modem parked on a steady 2225 Hz tone, the originating modem
+joined at 1270 Hz, and that was it. The famous screech is a 1990s modem
+*discovering what the line can carry*: echo-canceller disable, spectral probing,
+rate negotiation, training, then data that sounds like white noise.
+
+The authentic version is correct and nobody recognises it. A visitor who has
+never heard a 300-baud call hears two steady tones and concludes nothing is
+happening. The screech is what says "a modem is connecting" to the people this
+room is for.
+
+So this is the one place the room knowingly prefers a familiar lie to an
+unfamiliar truth. It is disclosed in the anachronism register (§9) rather than
+smuggled in, and everything around it stays honest — the call-progress tones are
+the real Western Electric frequencies, the line really runs at 300 baud, and the
+sound still stops dead at connect, which the 1990s modems also did.

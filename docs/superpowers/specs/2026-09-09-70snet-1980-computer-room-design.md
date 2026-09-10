@@ -562,10 +562,23 @@ these are generated exactly rather than approximated:
 experience of going online in 1980, and it is the sound the project is
 organised around. It should be exact, and it should come out of the handset.
 
-**A 300-baud connection does not screech.** The warbling handshake everyone
-remembers is V.32/V.34, from a decade later. Bell 103 is two modems holding
-steady tones at each other. This is the single most likely anachronism to creep
-in by instinct, and getting it right is worth more than any other sound here.
+**The connect sound is a deliberate anachronism, chosen with the facts on the
+table.** A real Bell 103 call had no handshake worth the name: both ends knew
+they were 300 baud, so the answering modem parked on a steady 2225 Hz mark tone,
+the originating modem joined at 1270 Hz, and that was the whole ceremony. The
+warble everyone pictures is V.32bis/V.34 from the 1990s — a multi-second
+negotiation, because those modems had to discover what the line could carry.
+
+**We use the 1990s screech anyway.** It is what people recognise as a modem
+connecting, and a visitor who has never heard Bell 103 reads the authentic
+version as nothing happening. This is the one place the room knowingly tells a
+familiar lie rather than an unfamiliar truth, and it is disclosed in the
+anachronism register (§9).
+
+Everything around it stays honest: the tones before it are the real Western
+Electric frequencies, the line speed really is 300 baud, and the sound still
+stops dead at connect — which the 1990s modems also did, muting the speaker at
+carrier detect.
 
 **The call goes silent once it connects.** This is the part most people
 actually remember, and it is easy to get wrong by building a soundtrack. The
@@ -695,6 +708,7 @@ Kept deliberately, and disclosed on the page:
 |---|---|---|---|
 | CBBS 3.5 | Nov 1981 | 3.3/3.4 would be right for fall 1980 | Only 3.5 survives as source; 3.3/3.4 survive as change docs |
 | Apple Super Serial Card | 1981 | Micromodem II (1979) or Communications Card (1978) | What `apple2ts` emulates; MAME support for the earlier cards unconfirmed |
+| The modem connect screech | 1993 | Bell 103's steady two-tone carrier | Chosen deliberately: the authentic sound reads as nothing happening to anyone who never heard it. See §7.1 |
 
 Deliberately excluded as anachronistic: the Hayes Smartmodem `AT` command set
 (1981). The 1980 room dials by hand, on the handset, then switches to DATA.
