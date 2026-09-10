@@ -54,13 +54,12 @@
  * every invocation -- two machines running at once, or this adapter's own
  * kill-and-reboot racing a leftover process, silently corrupt each other's
  * drives. run.sh honours `SEVENTIESNET_WORKDIR` to isolate a machine's disks
- * into its own directory (re-seeding drives A and C into it from the same
+ * into its own directory (re-seeding drives A, B and C into it from the same
  * places it always has), and this adapter always sets it, scoped under
- * `lineDir`, and re-seeded on every launch and reboot. It does not yet
- * re-seed drive B into an isolated workdir, though -- CBBS reads it right
- * after sign-on and gets a BDOS error on an empty one -- so this adapter
- * seeds drive B itself from the same `disks/cbbs-drive-b.dsk` run.sh would
- * use, each time it (re)launches the machine.
+ * `lineDir`, and re-seeded on every launch and reboot. This adapter also
+ * seeds drive B itself, from the same `disks/cbbs-drive-b.dsk` run.sh would
+ * use, before every (re)launch -- see `seedDriveB()`'s own comment for why
+ * that is not merely redundant with run.sh's copy.
  */
 import { spawn, type ChildProcess } from "node:child_process"
 import { copyFile, mkdir, stat } from "node:fs/promises"
@@ -148,6 +147,10 @@ export class CbbsHost implements LineInterface {
   private lineOutSeq = 0
   private stderrTail = ""
   private relaunching: Promise<void> | null = null
+  /** Set when the reboot behind `relaunching` rejected, so a `ring()` that
+   *  was waiting on it knows not to write into a machine that never came
+   *  back -- see `ring()`. Cleared by the next reboot that succeeds. */
+  private rebootFailure: Error | null = null
 
   private readonly dataCallbacks: Array<(bytes: Uint8Array) => void> = []
   private readonly failureCallbacks: Array<(err: Error) => void> = []
@@ -187,6 +190,11 @@ export class CbbsHost implements LineInterface {
     if (!this.started) throw new Error("CbbsHost: ring() called before start()")
     if (signal.aborted) throw new Error("CbbsHost: ring() aborted before it began")
     if (this.relaunching) await this.relaunching
+    if (this.rebootFailure) {
+      throw new Error(
+        `CbbsHost: ring() refused: the reboot after the last hangup failed: ${this.rebootFailure.message}`
+      )
+    }
 
     const phoneIn = this.phoneInOrThrow()
     await this.writeBuffer(phoneIn, Buffer.from([PHONE_RINGING]))
@@ -227,13 +235,26 @@ export class CbbsHost implements LineInterface {
     this.swallowing = true
 
     this.relaunching = this.reboot()
-      .catch(err => this.emitFailure(err instanceof Error ? err : new Error(String(err))))
+      .then(() => {
+        this.rebootFailure = null
+      })
+      .catch(err => {
+        const wrapped = err instanceof Error ? err : new Error(String(err))
+        this.rebootFailure = wrapped
+        this.emitFailure(wrapped)
+      })
       .finally(() => {
         this.relaunching = null
       })
   }
 
   async stop(): Promise<void> {
+    // A reboot in flight owns `this.sim` until it settles -- reading and
+    // clearing it here without waiting would tear down whatever was running
+    // when stop() was called, while the newly spawned emulator (assigned to
+    // `this.sim` afterwards) survives as an orphan.
+    if (this.relaunching) await this.relaunching
+
     this.started = false
     this.connected = false
     const sim = this.sim
@@ -361,7 +382,15 @@ export class CbbsHost implements LineInterface {
     try {
       await Promise.race([bootBody(), bootFailure])
     } catch (err) {
+      // bootBody() can fail (e.g. a FIFO/boot-prompt timeout) while the sim
+      // is still very much alive; spawned detached, it would otherwise
+      // survive as an orphan forever. Remove the listeners bootFailure
+      // registered first, so killing it here doesn't also reject that
+      // now-unobserved promise.
+      sim.removeAllListeners("exit")
+      sim.removeAllListeners("error")
       this.sim = null
+      killSimTree(sim, "SIGKILL")
       throw err
     }
 
@@ -382,12 +411,18 @@ export class CbbsHost implements LineInterface {
     })
   }
 
-  /** run.sh re-seeds drives A and C into an isolated SEVENTIESNET_WORKDIR,
-   *  but not drive B -- verified empirically: CBBS reads it immediately
-   *  after printing its sign-on banner, and gets a BDOS "Bad Sector" error
-   *  reading an empty one, taking the whole call down with it. Seed it the
-   *  same way run.sh seeds drive C, from the same static image, before
-   *  every launch (start() and hangup()'s reboot() alike). */
+  /** run.sh does seed drive B into the isolated SEVENTIESNET_WORKDIR too (it
+   *  copies disks/cbbs-drive-b.dsk, falling back to a stock CP/M library
+   *  image if that file is absent) -- CBBS reads B: immediately after
+   *  printing its sign-on banner, and gets a BDOS "Bad Sector" error reading
+   *  an empty one, taking the whole call down with it, so run.sh cannot skip
+   *  it either. This adapter seeds it again anyway, ahead of spawning run.sh,
+   *  because run.sh's fallback is silent: if disks/cbbs-drive-b.dsk ever goes
+   *  missing, run.sh would quietly hand callers a generic library disk on B:
+   *  instead of the room's real one. copyFile() here has no such fallback --
+   *  a missing source image throws ENOENT and fails the launch loudly, per
+   *  this project's no-silent-substitution rule -- before every launch
+   *  (start() and hangup()'s reboot() alike). */
   private async seedDriveB(): Promise<void> {
     const disksDir = path.join(this.workDir, "disks")
     await mkdir(disksDir, { recursive: true })

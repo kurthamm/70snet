@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { encodeFrame, decodeFrames, FramePayloadTooLargeError, type LineFrame } from "./line"
+import {
+  encodeFrame,
+  decodeFrames,
+  FramePayloadTooLargeError,
+  MalformedControlFramePayloadError,
+  type LineFrame,
+} from "./line"
 
 describe("line frame codec", () => {
   it("round-trips a data frame", () => {
@@ -43,5 +49,34 @@ describe("line frame codec", () => {
     const { frames, rest } = decodeFrames(encodeFrame(maxed))
     expect(frames).toEqual([maxed])
     expect(rest.length).toBe(0)
+  })
+
+  it("rejects a ring frame carrying a payload instead of ignoring it", () => {
+    // type=0x02 (ring), length=1, one stray payload byte.
+    expect(() => decodeFrames(new Uint8Array([0x02, 0x00, 0x01, 0x00])))
+      .toThrow(MalformedControlFramePayloadError)
+    expect(() => decodeFrames(new Uint8Array([0x02, 0x00, 0x01, 0x00])))
+      .toThrow(/malformed ring frame payload/)
+  })
+
+  it("rejects a carrier frame with the wrong payload length", () => {
+    // type=0x03 (carrier), length=0.
+    expect(() => decodeFrames(new Uint8Array([0x03, 0x00, 0x00])))
+      .toThrow(MalformedControlFramePayloadError)
+  })
+
+  it("rejects a carrier or offhook frame with a payload byte other than 0 or 1", () => {
+    // type=0x03 (carrier), length=1, payload byte 0x02.
+    expect(() => decodeFrames(new Uint8Array([0x03, 0x00, 0x01, 0x02])))
+      .toThrow(MalformedControlFramePayloadError)
+    // type=0x04 (offhook), length=1, payload byte 0xff.
+    expect(() => decodeFrames(new Uint8Array([0x04, 0x00, 0x01, 0xff])))
+      .toThrow(MalformedControlFramePayloadError)
+  })
+
+  it("still accepts well-formed carrier/offhook frames after the stricter check", () => {
+    // type=0x03 (carrier), length=1, payload byte 0x00 ("off").
+    const { frames } = decodeFrames(new Uint8Array([0x03, 0x00, 0x01, 0x00]))
+    expect(frames).toEqual([{ type: "carrier", on: false }])
   })
 })

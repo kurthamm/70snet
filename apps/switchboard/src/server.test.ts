@@ -13,6 +13,17 @@ function open(): Promise<WebSocket> {
   return new Promise(res => ws.on("open", () => res(ws)))
 }
 
+/** CBBS has exactly ONE line. If the next test dials before this socket's
+ *  close has actually round-tripped to the server, it can still see the
+ *  previous caller occupying the line -- so every test must await this
+ *  before moving on, not just call `.close()` and hope. */
+function close(ws: WebSocket): Promise<void> {
+  return new Promise(res => {
+    ws.once("close", () => res())
+    ws.close()
+  })
+}
+
 function nextControl(ws: WebSocket): Promise<any> {
   return new Promise(res =>
     ws.once("message", (d, isBinary) => { if (!isBinary) res(JSON.parse(String(d))) }))
@@ -34,7 +45,7 @@ describe("switchboard", () => {
       })
     })
     expect(text.toUpperCase()).toContain("CBBS")
-    ws.close()
+    await close(ws)
   }, 90_000)
 
   it("the second caller gets a busy signal", async () => {
@@ -46,7 +57,8 @@ describe("switchboard", () => {
     b.send(JSON.stringify({ kind: "dial", number: CBBS.number }))
     expect((await nextControl(b)).kind).toBe("busy")
 
-    a.close(); b.close()
+    await close(a)
+    await close(b)
   }, 90_000)
 
   it("delivers at 300 baud, not as fast as the socket allows", async () => {
@@ -66,6 +78,6 @@ describe("switchboard", () => {
     })
     // 60 characters at 30 cps cannot arrive in under ~2 seconds.
     expect(Date.now() - started).toBeGreaterThan(1800)
-    ws.close()
+    await close(ws)
   }, 90_000)
 })

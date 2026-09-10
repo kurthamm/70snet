@@ -21,6 +21,13 @@ export class FramePayloadTooLargeError extends Error {
   }
 }
 
+export class MalformedControlFramePayloadError extends Error {
+  constructor(frame: "ring" | "carrier" | "offhook", detail: string) {
+    super(`malformed ${frame} frame payload: ${detail}`)
+    this.name = "MalformedControlFramePayloadError"
+  }
+}
+
 export function encodeFrame(frame: LineFrame): Uint8Array {
   const payload =
     frame.type === "data" ? frame.bytes
@@ -56,10 +63,28 @@ export function decodeFrames(buf: Uint8Array): { frames: LineFrame[]; rest: Uint
 
     const payload = buf.subarray(i + HEADER, i + HEADER + len)
     switch (type) {
-      case DATA: frames.push({ type: "data", bytes: new Uint8Array(payload) }); break
-      case RING: frames.push({ type: "ring" }); break
-      case CARRIER: frames.push({ type: "carrier", on: payload[0] === 1 }); break
-      case OFFHOOK: frames.push({ type: "offhook", on: payload[0] === 1 }); break
+      case DATA:
+        frames.push({ type: "data", bytes: new Uint8Array(payload) })
+        break
+      case RING:
+        if (len !== 0) {
+          throw new MalformedControlFramePayloadError("ring", `expected 0 bytes, got ${len}`)
+        }
+        frames.push({ type: "ring" })
+        break
+      case CARRIER:
+      case OFFHOOK: {
+        const name = type === CARRIER ? "carrier" : "offhook"
+        if (len !== 1 || (payload[0] !== 0 && payload[0] !== 1)) {
+          throw new MalformedControlFramePayloadError(
+            name,
+            `expected exactly 1 byte valued 0 or 1, got ${len} byte${len === 1 ? "" : "s"}` +
+              (len === 1 ? ` valued ${payload[0]}` : "")
+          )
+        }
+        frames.push({ type: name, on: payload[0] === 1 })
+        break
+      }
       default:
         throw new Error(`unknown line frame type 0x${type.toString(16)}`)
     }

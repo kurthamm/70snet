@@ -46,10 +46,12 @@ export type ExchangeConnector = (
 
 /** The default connector: a plain WebSocket to the exchange. The exchange's
  *  address is not something this page may guess at -- the switchboard
- *  server is not yet part of this repository, so `data-exchange-url` on the
- *  document root is the one place that configuration comes from. Missing
- *  config fails immediately, with a named error, the moment a call is
- *  attempted -- never a silent no-op (project fail-fast rules). */
+ *  (apps/switchboard) runs as its own process, so `data-exchange-url` on the
+ *  document root is the one place that configuration comes from (set it to
+ *  wherever that switchboard is listening; see the comment on it in
+ *  index.html). Missing config fails immediately, with a named error, the
+ *  moment a call is attempted -- never a silent no-op (project fail-fast
+ *  rules). */
 export function webSocketExchangeConnector(): ExchangeConnector {
   return (number, onMessage) => {
     const url = document.documentElement.dataset.exchangeUrl
@@ -59,17 +61,45 @@ export function webSocketExchangeConnector(): ExchangeConnector {
       )
     }
     const ws = new WebSocket(url)
+    // A close the caller asked for (hanging up) is not a dropped call --
+    // only an unrequested close/error means the line actually went dead.
+    let closedByUs = false
+    let hadError = false
+
     ws.addEventListener("open", () => {
       const dial: ClientMessage = { kind: "dial", number }
       ws.send(JSON.stringify(dial))
     })
     ws.addEventListener("message", ev => {
-      const msg = JSON.parse(String(ev.data)) as ServerMessage
+      let msg: ServerMessage
+      try {
+        msg = JSON.parse(String(ev.data)) as ServerMessage
+      } catch (err) {
+        onMessage({
+          kind: "out-of-service",
+          reason: `malformed message from exchange: ${err instanceof Error ? err.message : String(err)}`,
+        })
+        return
+      }
       onMessage(msg)
+    })
+    ws.addEventListener("error", () => {
+      hadError = true
+    })
+    ws.addEventListener("close", ev => {
+      if (closedByUs) return
+      if (hadError || !ev.wasClean) {
+        onMessage({ kind: "out-of-service", reason: `connection lost (code ${ev.code})` })
+      } else {
+        onMessage({ kind: "carrier-lost" })
+      }
     })
     return {
       send: msg => ws.send(JSON.stringify(msg)),
-      close: () => ws.close(),
+      close: () => {
+        closedByUs = true
+        ws.close()
+      },
     }
   }
 }
@@ -96,7 +126,7 @@ export function renderRoom(
   const machines = document.createElement("div")
   machines.className = "machines"
   for (const machine of room.machines) {
-    machines.appendChild(renderMachine(machine, connect))
+    machines.appendChild(renderMachine(machine, connect, destinations, room.date))
   }
   el.appendChild(machines)
 
@@ -106,7 +136,12 @@ export function renderRoom(
   return el
 }
 
-function renderMachine(machine: MachineSpec, connect: ExchangeConnector): HTMLElement {
+function renderMachine(
+  machine: MachineSpec,
+  connect: ExchangeConnector,
+  destinations: Destination[],
+  date: string
+): HTMLElement {
   const section = document.createElement("section")
   section.className = "machine"
   section.setAttribute("data-machine", machine.id)
@@ -157,7 +192,7 @@ function renderMachine(machine: MachineSpec, connect: ExchangeConnector): HTMLEl
 
   section.appendChild(power)
   section.appendChild(screen)
-  section.appendChild(renderTelephone(machine, connect))
+  section.appendChild(renderTelephone(machine, connect, destinations, date))
 
   return section
 }
@@ -165,7 +200,12 @@ function renderMachine(machine: MachineSpec, connect: ExchangeConnector): HTMLEl
 /** The telephone: handset, rotary dial (or a single Hayes dial button, per
  *  the machine's modem -- spec §7.3, "the telephone UI reads the modem
  *  spec; it never assumes one"), and the tones that go with each state. */
-function renderTelephone(machine: MachineSpec, connect: ExchangeConnector): HTMLElement {
+function renderTelephone(
+  machine: MachineSpec,
+  connect: ExchangeConnector,
+  destinations: Destination[],
+  date: string
+): HTMLElement {
   const wrap = document.createElement("div")
   wrap.className = "telephone"
   wrap.setAttribute("data-telephone", "")
@@ -174,15 +214,37 @@ function renderTelephone(machine: MachineSpec, connect: ExchangeConnector): HTML
   const telephone = new Telephone({ tones: new Tones(), dialing: machine.modem.dialing })
   let socket: ExchangeSocket | null = null
 
+  // The partially dialled number lives here, not inside the manual-dial
+  // branch below, so a hangup from *any* path (handset replaced, carrier
+  // lost, busy) can clear it -- otherwise the next call starts with digits
+  // left over from the last one.
+  let dialed = ""
+
+  // Whether the visitor has flipped the modem to DATA on the current call.
+  // `refresh` is the single place that reconciles this with reality: once
+  // the call is no longer connected there is nothing to be in DATA mode on.
+  let inDataMode = false
+
   const status = document.createElement("p")
   status.className = "telephone-status"
   status.setAttribute("data-telephone-status", "")
   status.textContent = telephone.state
-  const refresh = () => { status.textContent = telephone.state }
+
+  const dataSwitch = document.createElement("button")
+  dataSwitch.type = "button"
+  dataSwitch.setAttribute("data-modem-switch", "")
+  dataSwitch.textContent = "Modem: VOICE"
+
+  const refresh = () => {
+    status.textContent = telephone.state
+    if (telephone.state !== "connected") inDataMode = false
+    dataSwitch.textContent = inDataMode ? "Modem: DATA" : "Modem: VOICE"
+  }
 
   const endCall = () => {
     socket?.close()
     socket = null
+    dialed = ""
   }
 
   const handset = document.createElement("button")
@@ -202,13 +264,15 @@ function renderTelephone(machine: MachineSpec, connect: ExchangeConnector): HTML
     refresh()
   })
 
-  const dataSwitch = document.createElement("button")
-  dataSwitch.type = "button"
-  dataSwitch.setAttribute("data-modem-switch", "")
-  dataSwitch.textContent = "Modem: VOICE"
   dataSwitch.addEventListener("click", () => {
-    telephone.flipToData()
-    dataSwitch.textContent = "Modem: DATA"
+    // The switch only means anything on a live call.
+    if (telephone.state !== "connected") return
+    if (inDataMode) {
+      telephone.flipToVoice()
+    } else {
+      telephone.flipToData()
+    }
+    inDataMode = !inDataMode
     refresh()
   })
 
@@ -224,7 +288,6 @@ function renderTelephone(machine: MachineSpec, connect: ExchangeConnector): HTML
   dialPad.setAttribute("data-rotary-dial", "")
 
   if (machine.modem.dialing === "manual") {
-    let dialed = ""
     for (const digit of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]) {
       const btn = document.createElement("button")
       btn.type = "button"
@@ -245,15 +308,27 @@ function renderTelephone(machine: MachineSpec, connect: ExchangeConnector): HTML
     }
   } else {
     // 1981+: a Hayes Smartmodem dials itself; there is no handset in the
-    // loop (spec §7.3). One button, reading the number to dial from the
-    // room's phone book at the moment the visitor presses it.
+    // loop (spec §7.3). The visitor picks a destination from the room's
+    // phone book, and that selection is passed straight into the dialing
+    // action -- not stashed on a dataset attribute the button then has to
+    // go looking for.
+    const numberSelect = document.createElement("select")
+    numberSelect.setAttribute("data-hayes-number-select", "")
+    for (const entry of phoneBook(destinations, date)) {
+      const option = document.createElement("option")
+      option.value = entry.number
+      option.textContent = `${entry.name} (${entry.number})`
+      numberSelect.appendChild(option)
+    }
+    dialPad.appendChild(numberSelect)
+
     const dialButton = document.createElement("button")
     dialButton.type = "button"
     dialButton.setAttribute("data-hayes-dial", "")
     dialButton.textContent = "Dial"
     dialButton.addEventListener("click", () => {
-      const number = dialPad.dataset.number
-      if (number === undefined) throw new Error("no number set to dial")
+      const number = numberSelect.value
+      if (number === "") throw new Error("no number set to dial")
       void telephone.dialNumber(number).then(() => {
         refresh()
         onConnected(number)

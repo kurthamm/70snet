@@ -46,6 +46,17 @@ export class Telephone {
     this.opts.tones.silence()
   }
 
+  /** The visitor flips the modem back to VOICE mid-call -- the reverse of
+   *  `flipToData`. If the carrier is still up, the FSK burble resumes; the
+   *  call itself is untouched either way, exactly as with `flipToData`. */
+  flipToVoice(): void {
+    if (this._state === "connected") {
+      this.opts.tones.data(true)
+    } else {
+      this.opts.tones.silence()
+    }
+  }
+
   /** One digit, at the speed a rotary dial actually returned. */
   async dial(digit: string): Promise<void> {
     if (this._state === "on-hook") throw new Error("cannot dial: the handset is down")

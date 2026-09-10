@@ -80,4 +80,25 @@ describe("Telephone", () => {
     expect(t.state).toBe("connected")
     expect(tones.silence).toHaveBeenCalled()
   })
+
+  it("flipping back to VOICE mid-call resumes the burble without ending the call", () => {
+    const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
+    const t = new Telephone({ tones, dialing: "manual" })
+    t.lift()
+    t.hear({ kind: "connected", baud: 300 })
+    t.flipToData()
+    tones.data.mockClear()
+    t.flipToVoice()
+    expect(t.state).toBe("connected")
+    expect(tones.data).toHaveBeenCalledWith(true)
+  })
+
+  it("flipping back to VOICE off a call is just silence, not a resumed burble", () => {
+    const tones = freshTones()
+    const t = new Telephone({ tones, dialing: "manual" })
+    t.flipToVoice()
+    expect(t.state).toBe("on-hook")
+    expect(tones.silence).toHaveBeenCalled()
+    expect(tones.data).not.toHaveBeenCalled()
+  })
 })
