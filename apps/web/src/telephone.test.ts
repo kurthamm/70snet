@@ -4,7 +4,17 @@ import { Telephone } from "./telephone"
 const silentTones = {
   dialTone: vi.fn(), ringback: vi.fn(), busy: vi.fn(),
   carrier: vi.fn(), silence: vi.fn(),
+  handshake: vi.fn(), data: vi.fn(),
 }
+
+/** A fresh set of tone spies, so one test's calls can't leak into another's
+ *  assertions the way sharing `silentTones` by reference would. */
+const freshTones = (overrides: Partial<typeof silentTones> = {}) => ({
+  dialTone: vi.fn(), ringback: vi.fn(), busy: vi.fn(),
+  carrier: vi.fn(), silence: vi.fn(),
+  handshake: vi.fn(), data: vi.fn(),
+  ...overrides,
+})
 
 describe("Telephone", () => {
   beforeEach(() => vi.useFakeTimers())
@@ -39,5 +49,35 @@ describe("Telephone", () => {
     t.hear({ kind: "busy" })
     expect(silentTones.busy).toHaveBeenCalled()
     expect(t.state).toBe("busy")
+  })
+
+  it("on connect, runs the handshake and starts the data burble once trained", () => {
+    const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
+    const t = new Telephone({ tones, dialing: "manual" })
+    t.lift()
+    t.hear({ kind: "connected", baud: 300 })
+    expect(t.state).toBe("connected")
+    expect(tones.handshake).toHaveBeenCalled()
+    expect(tones.data).toHaveBeenCalledWith(true)
+  })
+
+  it("drops to no carrier, told honestly, when the handshake fails to train", () => {
+    const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(false)) })
+    const t = new Telephone({ tones, dialing: "manual" })
+    t.lift()
+    t.hear({ kind: "connected", baud: 300 })
+    expect(t.state).toBe("on-hook")
+    expect(tones.silence).toHaveBeenCalled()
+    expect(tones.data).not.toHaveBeenCalled()
+  })
+
+  it("flipping to DATA cuts the audio without ending the call", () => {
+    const tones = freshTones({ handshake: vi.fn((onTrained?: (trained: boolean) => void) => onTrained?.(true)) })
+    const t = new Telephone({ tones, dialing: "manual" })
+    t.lift()
+    t.hear({ kind: "connected", baud: 300 })
+    t.flipToData()
+    expect(t.state).toBe("connected")
+    expect(tones.silence).toHaveBeenCalled()
   })
 })

@@ -21,6 +21,7 @@ from cpm import CpmSim
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SIM = ROOT / "vendor/z80pack/cpmsim"
+ROOM_DATE = os.environ.get("SEVENTIESNET_DATE", "1980-10-01")
 
 IN_PERIOD = "2"      # 02/07/78, Ward and Randy
 AFTER_ROOM = "17"    # 11/21/81 -- exists in the archive, not in this room
@@ -31,7 +32,7 @@ def fail(msg, text):
     return 1
 
 def main():
-    with CpmSim(str(SIM)) as s:
+    with CpmSim(str(SIM), env={"SEVENTIESNET_DATE": ROOM_DATE}) as s:
         s.read(3)
         s.send("C:\r", settle=1)
         s.send("CBBS\r", settle=6)

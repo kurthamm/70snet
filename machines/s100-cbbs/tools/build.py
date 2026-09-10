@@ -30,9 +30,11 @@ if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", ROOM_DATE):
 EQUATES = [
     (r"^PMMI\tEQU\tTRUE ", "PMMI\tEQU\tFALSE"),
     (r"^SERMODM\tEQU\tFALSE", "SERMODM\tEQU\tTRUE "),
-    # Spike stage: no clock card. Task 7 replaces this with a Scitronics
-    # board fed the room's date, so CBBS date-stamps its own messages.
-    (r"^CLOCKS\tEQU\tTRUE ", "CLOCKS\tEQU\tFALSE"),
+    # The Scitronics clock is emulated at ports 24-27 and reports the ROOM's
+    # date, so CBBS stamps its own messages with it (spec §5.3). Turning this
+    # off would mean guessing message dates later, which spec §3 calls
+    # unrecoverable.
+    (r"^CLOCKS\tEQU\tFALSE", "CLOCKS\tEQU\tTRUE "),
 ]
 
 def configure():
@@ -54,7 +56,10 @@ def configure():
 LINK_CHAIN = [
     "cbbs.asm", "cbbsfunc.asm", "cbbsbye.asm", "cbbssumm.asm", "cbbsent1.asm",
     "cbbsent2.asm", "cbbsrtrv.asm", "cbbsoper.asm", "cbbskill.asm",
-    "cbbsdisk.asm", "cbbssub1.asm", "cbbssub2.asm", "cbbssub3.asm",
+    # CBBSDISK links to CBBSCLKS when CLOCKS is TRUE (see EQUATES): the
+    # clock driver is part of the chain, not an optional extra. Leave it off
+    # and LINKASM stops at "No source file present".
+    "cbbsdisk.asm", "cbbsclks.asm", "cbbssub1.asm", "cbbssub2.asm", "cbbssub3.asm",
     "cbbsmodm.asm", "cbbswork.asm",
 ]
 
