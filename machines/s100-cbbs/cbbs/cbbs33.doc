@@ -1,0 +1,115 @@
+			CBBS33.DOC 06/22/80
+     This file contains changes to CBBS between version 3.2ç
+which was sent to a few people, and version 3.3. See CBBS3.DOCç
+for 3.2 information, and other .DOC files for previousç
+information.  See CBBS34.DOC for 3.4 info.
+
+CBBS.ASM:
+	Split the code for printing caller number, high message ç
+number, and number of active messages, into a subroutine. It is ç
+called at logon, and by the new # command.
+	Put in an equate for running under FAST.  FAST is a ç
+routine which does full track buffering, read and write. A ç
+patched version of FAST called FX.COM is on the disk. It is ç
+patched so that the address "bios-3" is a JMP to the routine in ç
+FAST to purge the buffers.  CBBS detects if it is running under ç
+FAST by looking at the address in the BIOS JMP table for warm ç
+boot - if it jumps lower in memory, then we are running under ç
+FAST (because FAST patches itself in under the BIOS.  It then ç
+verifies that "BDOS-3" is a JMP instruction.  If neither of ç
+these is true, then CBBS assumes it is not running under FAST, ç
+and doesn't do the buffer flush. 
+     There is now an equate, FILEDIV, which is a divisor in the ç
+following logic, shown in BASIC for clarity:
+
+	FILE# = FILEDIV * INT(MSG# / FILEDIV)
+
+Thus FILEDIV is 2 for 50 message files (standard for 2 disk ç
+systems) or 3 for 34 files, 4 for 25, etc.
+
+CBBSFUNC.ASM
+     Added the "#" command (see above)
+
+CBBSBYE.ASM
+	Changed so it doesn't print "OK - OK - OK -" if ç
+stacked comment lines (multiple lines separated by ";") are ç
+entered.
+
+CBBSSUMM.ASM
+	No changes, 3.2 to 3.3
+
+CBBSENT1.ASM
+	Added code to check for clock board returning "9" as ç
+first digit of the month, and if so, asking the user to enter ç
+the date.
+
+CBBSENT2.ASM
+	Fix 'G' command error that dumps a 5CH into location 0 ç
+if msg # not found on a (G)et.  Also LXI SP at ENCOMD to ç
+prevent stack crash if ^K is used many times during message ç
+subfunctions (although I have never seen this happen, it ç
+occurred to me it might be able to). 
+
+CBBSRTRV.ASM
+	Whoops, I see the prolog to that still contains a ç
+reference to "FILEMSK" which was deleted.  Owell,  time to ç
+change the documentation for next time.
+	Revised SETMSGN to divide instead of masking bits when ç
+calculating the message file name.
+
+CBBSOPER.ASM
+	Changed the default for the STAT command to assuming ç
+CBBS is running on CP/M 1.4, not 1.3
+
+CBBSKILL.ASM to disk
+	Fix so "updating" message comes out OK, and add CLOSE ç
+of WORKFILE if we abort the kill due to password problems or ç
+message not found.  If we just erased the WORKFILE, the space ç
+it occupied is not reclaimed because the WORKFILE directory ç
+entry is empty.
+	Split "looking for it" message so its on a separate ç
+line if multiple "K" stacked (K;1234;K;1235;K;1236)
+
+CBBSDISK.ASM
+	No mods since 3.2
+
+CBBSCLOK.ASM
+	No mods since 3.2
+
+CBBSSUB1.ASM
+	Put in buffer flush if running under FAST.
+
+CBBSSUB2.ASM
+	Change to save registers during BIOS char in, out, and ç
+status calls.  Required to run under FAST, as well as ç
+potentially some other BIOSs.
+
+CBBSSUB3.ASM
+	Put in buffer flush routine if running under FAST.
+
+CBBSPMMI.ASM
+	Put in code to properly test if switching to a baud ç
+rate > 300 by the "A" command.
+	Put in code to double-read C/R when determining logon ç
+speed - should help prevent a glitch being mis-detected as a ç
+wrong-speed C/R.
+	After testing 600 baud, put in an additional 110 baud ç
+speed test, to prevent problems by glitches associated with ç
+trouble loggint in at 110 baud. (Nothing wrong with PMMI, just ç
+a function of the switch-and-read technique of determining ç
+speed).
+
+CBBSIDS.ASM
+	No changes since 3.2
+
+CBBSHAYS.ASM
+	No changes since 3.2
+
+CBBSMODM.ASM
+	Put in 1 sec delay after hangup, if in re-init mode.
+
+CBBSWORK.ASM
+	Put ORG which is in IF TTY, and before label MSGBUF, ç
+outside of the IF TTY, because it must be done to align MSGBUF.
+
+	See CBBS34.DOC for info on 3.4 mods.

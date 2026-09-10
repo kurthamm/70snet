@@ -1,0 +1,122 @@
+			THOUGHTS.DOC
+
+Latest thoughts off the top of my head on CBBS, as of 3/3/80.
+
+					Ward Christensen
+					Rev 11/28/81
+
+
+I was looking for a technique to disseminate some of the newç
+mods to CBBS.  The BULLETIN seems the most logical place - butç
+I wanted to keep that brief.  Putting them in messages is OK,ç
+but people have to be relatively familiar with CBBS to findç
+these things.  Thus was born the NEWS file, which is like anç
+extended bulletin.  You can type either the "headlines",ç
+(1-line details) or the detailed items.  New for Vers 3.5.
+
+It is my intent that the first 20 messages on "every" CBBS beç
+essentially the same.  We'd appreciate you keeping messagesç
+9-11 so more people might order CBBS based on seeing the "ad"ç
+for the software on YOUR system.  Also, message 1 should beç
+personalized to give the history of YOUR system.  We'dç
+appreciate you giving us credit for the base software, but makeç
+everything else appropriate for your involvement.
+
+Call our system to get the latest entries for messages 12, 13,ç
+14, which tell of other message systems.  12 is full timeç
+CBBSs, 13 is full time other systems, and 14 is any non-fullç
+time systems.  It is my practice to try to keep these messagesç
+up to date, and if someone has not reported the activity of aç
+particular system for 6 months, then delete it. It just costsç
+too much to keep calling systems to see if they are still up.
+
+The file FIRSTIME contains a hardware description.  So does theç
+help file.  It is up to you to put similar info in both. Maybe,ç
+you want to delete the hardware question from the FIRSTIMEç
+file, or just say, in FIRSTIME, to type:
+	H;HARDWARE
+to get details on the hardware.
+
+The CBBS.COM on this disk is a 3.5 version with no modemç
+dependencies.  It allows you to "dink" with the system enteringç
+messages, etc.  You may run out of disk files if you use it tooç
+much, as there are so many other files on the disk, and couldç
+be up to 50 message files if you add enough messages.
+
+If you are converting an "old" CBBS to the new message fileç
+format, our "convert" program is totally useless unless you areç
+going to go to 50 message files.  If you want fewer, thenç
+you'll just have to pattern a new BASIC program after the one,ç
+but don't dink around as I did trying to "and" bits.  The CBBSç
+code uses the following algorithm to map from the decimal valueç
+of the last two digits of a message number, to a file number:
+
+	file#=divisor*int(msg#/divisor)
+
+Thus if you use 4 for a divisor, the program will use 25ç
+message files.  Message numbers ending in 00, 01, 02, and 03ç
+will be written to file MESSAGE.X00, etc.
+
+It is my personal opinion that a CBBS which is up 24 hours aç
+day 7 days a week, is many times better than one which is not.ç
+This is because if its up always, people don't have to thinkç
+about when they may call it.  They can just pick up the phoneç
+at any time, and call in.
+
+I'd like to keep some semblance of consistency to CBBS ç
+commands.  I would LOVE it if people would somewhat "clear"ç
+usage of new 1 letter commands with me.  For example, "L" isç
+now accepted as a "list" command by some CBBSers, specificallyç
+Steve Vinokuroff of CBBS/Vancouver.  He allows the user to typeç
+any .ASM file (he forces the type to .ASM).  L asks for aç
+filename, then executes the operator TYPE command after forcingç
+type .ASM - Others think about putting the "L" command forç
+"linefeeds" because the half-ascii TRS-80 doesn't seem to wantç
+them (double spaces) but lets face it, they really should goç
+with a full "standard" terminal program.  Back to Steveç
+Vinokuroff: He is also thinking of using "F" for "Fileç
+transfer".  Hmm, I'd prefer to keep that open for a newç
+"forward" command, i.e. "F;1234;CHI" means to "forward messageç
+1234 to Chicago".  This is just blue sky at this time, but lotsç
+of BBS operators (CBBS/ABBS/FORUM-80/PBBS) are interested inç
+message forwarding.
+
+Thoughts for the future:
+
+I'd like to put all commands related to a particular user, (Iç
+guess I mean their terminal) and put them into a singleç
+command, as Bob Iannucci does with his homebrew BBS system.
+
+Thus "U" for user, is a single command, under which you access:
+
+	A=Alter Baud rate
+	C=Change Case
+	D=Duplex (echo/no echo)
+	N=Nulls
+	P=Prompting bells on/off
+	V=Video Backspaces
+	
+Lewis Moseley, CBBS/Atlanta, has done this.
+
+Thus the number of options in the "primary" menu drops by 5ç
+(delete 6, add 1 (U)).
+
+I instead just grouped the commands together when you type "?",ç
+so you see the 6 major functions, then the other ones.  A bitç
+more clear than just presenting all commands in alphabeticalç
+order.
+
+			-------------
+
+It is our policy, on a 2 disk, single density system, toç
+maintain 280 - 320 active messages.  Seems OK.  Occasionally aç
+caller says "get rid of your old messages".  Ya, 320 is a lot. ç
+We "suffer" a lot to see someone at 110 baud doing S;1 - egadç
+that takes what, almost a half hour?  Some CBBS operators mayç
+choose to not even allow 110 baud.
+
+Oh yes, special thanks to the S-100 modem companies (Hayes,ç
+IDS, and PMMI) for really making CBBS practical. We probablyç
+wouldn't have tried it with an external modem.
+
+P.S. Please excuse redundancy between various .DOC files.

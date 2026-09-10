@@ -1,0 +1,43 @@
+xsub ;note requires cp/m 2.2
+;$1 is disk, (b: etc)
+;$2 is hex or com
+;$3 is ";" if you have scitronics clock
+sid $1cbbs.$2 $1cbbs.sym
+f.passflg,.passflg,0
+f.typdly+2,.typdly+2,8
+f.time1,.time1,0
+f.newsfl,.newsfl,0
+f.welcom,.welcom,0
+f.bulfl,.bulfl,0
+f.logfl,.logfl,0
+f.msglgfl,.msglgfl,0
+f.notefl,.notefl,0
+f.helpfl,.helpfl,0
+f.help2fl,.help2fl,0
+f.enhlfl,.enhlfl,0
+f.schlfl,.schlfl,0
+f.eninfl,.eninfl,0
+f.sumfl,.sumfl,0
+f.funcfl,.funcfl,0
+f.cktty+9,.cktty+9,1
+f.outtty,.outtty+1,0
+s.inbuf
+"note following operator mode default:
+.
+f.passfl,.passfl,0
+a.start+6
+jmp .well
+.
+a.disc
+jmp 0
+.
+s.inbuf
+"omit following if you have scitronics clock
+.
+$3a.clkinit
+$3mvi a,ff
+$3.
+s.inbuf
+"last byte to save is:
+.
+h.qfname+1

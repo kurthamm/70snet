@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    data-exchange-url: the switchboard's WebSocket address, e.g.
+    ws://localhost:8080. The switchboard (apps/switchboard) is a separate
+    process, started independently and not built by this page, so its
+    address is deployment configuration, not something this file can know
+    in advance. Set this attribute (by templating it at deploy time, or by
+    hand for local development) to wherever that switchboard is actually
+    listening. Left unset, room.ts fails loudly, not silently, the moment a
+    visitor tries to dial (see webSocketExchangeConnector in src/room.ts).
+  -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>70snet &mdash; the 1980 room</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

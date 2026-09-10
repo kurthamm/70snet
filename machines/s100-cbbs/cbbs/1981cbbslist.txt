@@ -1,0 +1,100 @@
+00012,48,12/26/81,WARD AND RANDY,ALL 
+CBBS PHONE #S,NONE 
+(Non-CBBS msg sys #'s in msgs 13-14) 
+--> Newest changes first 
+LOCATION    ----PHONE---- * OPERATORS		LAST-CONTACT 
+Wash. DC   (703) 734-1387 6 Terry Fox (Amrad)	12/26/81
+Columbus O (614) 272-CBBS   Ben	Miller		12/26/81
+Oregon	   (503) 646-5510 6 Jim	& Bill		12/18/81 
+Sacramento (916) 483-8718 6 Joe Bergin		12/15/81
+Baton Rouge(504) 273-3116 6 Joe	McGuckin/	11/21/81
+			     Stan Brohn	
+Atlanta	   (404) 394-4220   Atl.Comp.Soc.	09/06/81 
+Milwaukee  (414) 241-8364 O "MAUDE"		07/25/81 
+CedarRapids(319) 364-0811 P Don	Nelson		06/28/81 
+Vancouver  (604) 687-2640 3 Steve Vinokuroff	05/17/81 
+Long Island(516) 561-6590   LICA Dave Minott	04/06/81 
+Pittsburgh (412) 822-7176   P.A.C.C.		02/14/81 
+Mpls MN	   (612) 869-5780   Doug Poole		02/13/81 
+Cambridge  (617) 864-3819   Dave Mitton		09/24/80 
+	(Fone number changing "soon" as	of 7/20/81) 
+Pasadena   (213) 799-1632 M   Dick Mead		11/12/80 
+ This list came from:	
+Chicago	   (312) 545-8086 1 Ward & Randy	12/26/81
+
+ 
+(*): 
+1	is the system you are now on, programmed and implement-	
+	ed by Ward and Randy, Jan-Feb 1978.  "CBBS" is the 
+	trademark for our system and software, as is 
+	"Computerized Bulletin Board System". 
+P	"Part time but feel free to call any time" 
+3	300 baud only.	Steve's	adding lots of goodies!! 
+6	Up to 600 baud, with PMMI
+O	Is running under "Oasis" but is	the same to the	user 
+	as the CP/M versions.  "MAUDE" is the "Milwaukee Area 
+	Utility	for Digital Exchange".   Maude is available on
+	Chicago line, which "forwards" to Milwaukee.  NOTE
+	if it is busy, you are seeing "Milwaukee busy" and
+	will be charged for a call to downtown Chicago:
+	(312) 876-0974 6PM-730AM, 24hrs sat-sun 
+	As I recall, it supports 450 baud.
+PACC	is the Pittsburgh Area Computer	Club, their CBBS 
+	will "occasionally" be down for	newsletter work, etc. 
+LICA	is the Long Island Computer Association. 
+AMRAD	is the Amateur Radio Research and Development Corp, 
+	A group	of very	active Hams/Computer hobbyists.	
+ 
+H-E-L-P	keep the list and status up to date. 
+ 
+Full time, non-CBBS systems are	in message 13, part time 
+systems	in message 14. 
+00013,47,12/26/81,WARD & RANDY,ALL 
+OTHER MESSAGE SYS. PHONE #S,NONE 
+Full time non-CBBS message systems: (part time ones in msg 14) 
+ 
+Help keep these	updated	- <========= even just to say "still 
+ there as of mm/dd/yy" 
+ 
+--> most recent	mods first 
+LOCATION    ----PHONE----  TYPE	  OPERATORS    LAST-CONTACT 
+Ft Mill	SC  (803) 547-6576 RBBS   Bill Taylor	12/26/81
+Atlanta	GA  (404) 926-4318 NBBS	  Les Freed	12/26/81
+Southfield MI(313)357-1422 ABBS	  Curt Deegan	10/28/81 
+Greensboro  (919) 272-9286 ?????  GTRUG		10/18/81 
+San Jose    (408) 296-5799 8BBS#1 Bernard Klatt(down 9/81) 
+Santee CA.  (714) 443-8754 PMS #1 Bill Blue	07/31/81 
+Chicago	    (312) 622-4442 M81	Geo Matyaszek	07/25/81 
+Chicago	    (312) 338-8827 AIS Sidney Bratkovich 07/05/81 
+Palatine IL (312) 359-9450 PBBS** John Petrikas	05/17/81 
+Peoria IL   (309) 697-2431 ABBS	  Greg Smith	04/12/81 
+Cranford NJ (201) 272-1874 Note-1 Bruce	Ratoff	04/12/81 
+San Fran.   (415) 863-4703 PCNET  PCNET		03/27/81 
+Seattle	    (206) 723-DATA F-80	  Bruce	Murphy	01/16/81 
+------------ 
+GTRUG	is the Greensboro TRS-80 Users Group.  "?????" is in 
+	the system name	because	they just called it "homebrew".	
+	Requires a password (!!) "FREDSMITH" 
+M81	is our abbreviation for	"MESSAGE '81 OF	CHICAGO" 
+AIS	Apple Information System 
+ABBS	Apple Bulletin Board System (See PMS #1	below) 
+PMS #1	is Bill	Blue's original	system.	 He originated ABBS, 
+	(which is now being sold by "Peripherals Unlimited") 
+	but now	runs the "Peoples Message System" (PMS)	
+F-80	is a "FORUM-80", a TRS-80 programmed by	Bill Abney. 
+NBBS	is an online Northstar,	allowing BBS type operation 
+	as well	as BASIC programs.  Les	Freed wrote this 
+	"pioneering" piece of software.	 PMMI accepts to 600. 
+PBBS**	Is is the "Public Bulletin Board System" (P.B.B.S.) 
+	which is running Les Freed's "NBBS" (above). 
+Note-1	This is	a remote CP/M system with many programs	online 
+	for execution and modem	transfer.  Runs	a small	
+	bulletin board system, too. 
+---->	Call once, hang	up after one ring, then	call again. 
+Note-2	Is a bulletin board system implemented on a single 
+	disk Northstar system, in assembler.  Check out	its 
+	clever ideas. 
+---- 
+This info is here based	on YOUR	input.	Let us know if a sys 
+goes down, or a	number is bad, or if it's part time and	
+should be in message 14. 

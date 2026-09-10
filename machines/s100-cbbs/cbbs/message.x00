@@ -1,0 +1,27 @@
+00001,23,09/14/78,WARD AND RANDY,ALL
+SYSTEM HISTORY,NONE
+System History: It was conceived in a phone conversation
+between Ward Christensen and Randy Suess, on January 16,
+1978.  At that time, rough hardware and software require-
+ments were established.  Randy began working on hardware,
+and Ward prototyped the software in MITS 8K BASIC, with
+no actual message saving to disk.  As Randy got further
+with the hardware, programming was done in assembler for
+the final version to go online.  After buying a license
+for CP/M, burning some PROMS (for scroll routine), and so
+on, the system went on the air, ONE MONTH from the day it
+was conceived.  It was totally financed by Ward and Randy
+except for memory board contributions from Lloyd Smith.
+It was originally thought to be connected to the CACHE
+message recorder line as a way to get material for the
+"CACHE Register" (newsletter of the  Chicago Area Com-
+puter Hobbyist's Exchange) but turned into a more general
+message exchange system.  Articles or comments appeared
+in various publications: June ('78) BYTE's Bits, July
+BYTE editorial, July 17 Computerworld, June Dr. Dobbs
+Journal, Nov.  BYTE, etc.
+<<some people call this the "CACHE bulletin board system",
+  but it has never been affiliated with CACHE.  We decided it
+  would be faster and easier to do just between the two of us>>
+
+

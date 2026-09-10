@@ -1,0 +1,12 @@
+{
+  "name": "@70snet/web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@70snet/protocol": "workspace:*",
+    "@70snet/registry": "workspace:*"
+  }
+}

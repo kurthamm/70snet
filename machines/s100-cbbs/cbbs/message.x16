@@ -1,0 +1,90 @@
+00016,46,10/23/80,WARD AND RANDY,ALL
+CBBS VERS 3.4 FEATURES,NONE
+The major enhancement of version 3.4 is that message kill time
+was cut by about 1 minute, to 20 seconds or less.  This was
+done by just "flagging" the summary as deleted, instead of
+processing the entire summary file "like an editor".  The only
+consequence is that periodically we have to issue a "PURGE"
+command, which really does pack the summary (and takes about
+a minute).
+	The previous MAJOR change in CBBS was at version 3.0:
+It was installed in Mid July, 1980.  Here's some comments:
+
+* Message numbers are now 5 digits, and will never be packed
+  or renumbered.
+* Speed detect at initial sign-on now has 110/300/450/600.
+* (A)lter baud rate function: 62 to ??? (650 is probably tops)
+* (E)nter msg command enhancements:
+  * Clearer wording of password protecting your msg.
+  * Line (I)nsert and (D)elete commands.
+  * Control-K no longer aborts back to main FUNCTION
+    menu: You go to message entry sub-function menu,
+    and can use (A)bort to get back to main menu.
+  * Control-I supported:	Tabs to next column multiple
+    of 8.  Please use it instead of multiple spaces
+    as it makes the most efficient use of disk space.
+  * Entering a dash (-) in reply to "Subj", "Protect",
+    "Password" or "Help" will back up one prompt, i.e.
+    replying - to "Protect Y/N:?" backs up to Subject.
+    Subject backs up to "Who to", which backs to itself.
+  * G subcommand allows getting a previously entered
+    message, editing it, and saving it as a new msg.
+    (this function added in October 1979)
+* (H)elp function completely rewritten:  It's keyword oriented.
+  Try it out!  (and if you find something missing PLEASE let
+  us know via a msg or comments)
+* (V)ideo rubouts: echos backspace/space/backspace.
+* (T)ime command prints elapsed time.
+* (Q)uick summary and (S)ummary allow "-n" i.e. q;-20 means
+  20 msgs back from the current highest.
+* New control characters:
+  * Ctl-W retypes the last Word (like Ctl-R does a line)
+    (^W changed to WORD DELETE in version 3.5) 9/81
+  * Ctl-L shows current position in line while keying
+  * Ctl-I indents 8.
+* New control from keyboards with no control characters:
+  S suspends typing (e.g. look a while, then hit S to continue)
+  C cancels the current output.
+  K kills the current function.
+  * These are still available as ctl-S, ctl-C, and ctl-K
+00017,39,11/21/81,WARD AND RANDY,ALL
+CBBS VERS 3.5 FEATURES,NONE
+A new release of CBBS was developed during the summer of 1981,
+and installed in the fall.  It includes primarily usability
+features.  Still NOT IMPLEMENTED is "user logins".
+
+* SHORT command truncates all adjacent redundant characters:
+  space, and: !"#$%&'()*+,-./  in order to minimize time.
+* NEWS command implemented because the "BULLETIN" was getting
+  too large.  Also allows looking at headlines, or details.
+* "V" (video backspace) command rewritten to ask you what
+  character you want to use for video backspaces.
+  * ASCII BS (^H) always backs up;
+  * DEL always echoes
+* R (retrieve) command:
+  * "-" in Retrieve retrieves the last 10 messages prior to the
+    latest one referenced; at signon, the "next" msg is set up.
+* In "E" command (Enter message):
+  * Experts (via X command) don't get prompted for help
+  * Non-experts: asking them for help defaults to "N"
+    (Thanks to Jim Willing, CBBS/Beaverton OR,)
+  * Message entry: "-" now backs up from any question before you
+    get into message entry i.e. SUBJECT? backs up to main menu.
+  * Password simplified.  No longer asks for system password.
+    You must either enter a password, or press return to have
+    no password assigned.
+* When leaving comments, and you press the double C/R to end,
+  CBBS asks "Y/N DONE".  Thanks to Dav Holle, for the idea.
+* Q (quick summary) and S (summary) commands:
+  * significantly rewritten to support Boolean logicç
+    (and/or/not), and searching on any field.  Also
+    simplified to search on the entire message header if no
+    field specified.
+  * Message flagging supported during Q and S summaries.
+    * Press "F" during the NEXT summary to flag the prev.
+    * If you missed one, press "M" (or C/R) to be asked for the
+      message number(s) of the one(s) you missed.  Multiple
+      message numbers may be entered, separated by ";".
+    * Press "K" to abort the summary; the flagged messages will
+      be retrieved.  "K"ing out of it then aborts back to
+      the main FUNCTION... menu.

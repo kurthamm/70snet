@@ -1,0 +1,396 @@
+diff --git a/cpmsim/srcsim/simio.c b/cpmsim/srcsim/simio.c
+index 8eaa2d1e..d497dd0b 100644
+--- a/cpmsim/srcsim/simio.c
++++ b/cpmsim/srcsim/simio.c
+@@ -232,6 +232,50 @@ dskdef_t disks[16] = {
+ 	{ "drivep.dsk", &drivep, 256, 16384 }
+ };
+ 
++static char pipe_dir[512];
++static char auxin_path[600];
++static char auxout_path[600];
++
++static int line_in_fd = -1;
++static int line_out_fd = -1;
++static int phone_in_fd = -1;
++static int phone_out_fd = -1;
++static BYTE phone_status = 0xff;
++
++/* Open a FIFO O_RDWR so the open never blocks waiting for a peer, and so a
++   supervisor closing its end does not deliver EOF forever after. */
++static int line_fifo(const char *dir, const char *name)
++{
++	char path[512];
++	struct stat sb;
++	int fd;
++
++	snprintf(path, sizeof(path), "%s/%s", dir, name);
++	if (stat(path, &sb) != 0)
++		if (mkfifo(path, 0666) != 0) {
++			LOGE(TAG, "can't create telephone line fifo");
++			exit(EXIT_FAILURE);
++		}
++	if ((fd = open(path, O_RDWR | O_NONBLOCK)) == -1) {
++		LOGE(TAG, "can't open telephone line fifo");
++		exit(EXIT_FAILURE);
++	}
++	return fd;
++}
++
++static void init_telephone_line(void)
++{
++	const char *dir = getenv("SEVENTIESNET_LINE");
++
++	if (dir == NULL)
++		return;			/* ordinary terminal console */
++
++	line_in_fd = line_fifo(dir, "line.in");
++	line_out_fd = line_fifo(dir, "line.out");
++	phone_in_fd = line_fifo(dir, "phone.in");
++	phone_out_fd = line_fifo(dir, "phone.out");
++}
++
+ /*
+  *	Forward declaration of the I/O handlers for all used ports
+  */
+@@ -265,6 +309,10 @@ static BYTE time_in(void);
+ static void time_out(BYTE data);
+ static BYTE delay_in(void);
+ static void delay_out(BYTE data);
++static BYTE clock_in(void);
++static void clock_out(BYTE data);
++static BYTE phone_in(void);
++static void phone_out(BYTE data);
+ static BYTE hwctl_in(void);
+ static void hwctl_out(BYTE data);
+ static BYTE speedl_in(void), speedh_in(void);
+@@ -316,9 +364,10 @@ in_func_t *const port_in[256] = {
+ 	[ 21] = mmus_in,
+ 	[ 22] = mmuc_in,
+ 	[ 23] = mmup_in,
+-	[ 25] = clkc_in,
+-	[ 26] = clkd_in,
+-	[ 27] = time_in,
++	[ 24] = clock_in,	/* 70snet: Scitronics clock (cbbsclks.asm) */
++	[ 25] = clock_in,
++	[ 26] = clock_in,
++	[ 27] = clock_in,
+ 	[ 28] = delay_in,
+ 	[ 30] = speedl_in,
+ 	[ 31] = speedh_in,
+@@ -332,7 +381,8 @@ in_func_t *const port_in[256] = {
+ 	[ 47] = cond4_in,
+ 	[ 50] = nets1_in,
+ 	[ 51] = netd1_in,
+-	[160] = hwctl_in	/* virtual hardware control */
++	[160] = hwctl_in,	/* virtual hardware control */
++	[255] = phone_in	/* 70snet: modem control (cbbsmodm.asm) */
+ };
+ 
+ /*
+@@ -358,9 +408,10 @@ out_func_t *const port_out[256] = {
+ 	[ 21] = mmus_out,
+ 	[ 22] = mmuc_out,
+ 	[ 23] = mmup_out,
+-	[ 25] = clkc_out,
+-	[ 26] = clkd_out,
+-	[ 27] = time_out,
++	[ 24] = clock_out,	/* 70snet: Scitronics clock (cbbsclks.asm) */
++	[ 25] = clock_out,
++	[ 26] = clock_out,
++	[ 27] = clock_out,
+ 	[ 28] = delay_out,
+ 	[ 30] = speedl_out,
+ 	[ 31] = speedh_out,
+@@ -375,6 +426,7 @@ out_func_t *const port_out[256] = {
+ 	[ 50] = nets1_out,
+ 	[ 51] = netd1_out,
+ 	[160] = hwctl_out,	/* virtual hardware control */
++	[255] = phone_out,	/* 70snet: modem control (cbbsmodm.asm) */
+ 	[161] = host_bdos_out	/* host file I/O hook */
+ };
+ 
+@@ -395,19 +447,34 @@ void init_io(void)
+ {
+ 	register int i;
+ 	struct stat sbuf;
++
++	init_telephone_line();
+ #if defined(NETWORKING) && defined(TCPASYNC)
+ 	static struct sigaction newact;
+ #endif
+ 
+ #ifdef PIPES
+-	/* check if /tmp/.z80pack exists */
+-	if (stat("/tmp/.z80pack", &sbuf) != 0)
+-		mkdir("/tmp/.z80pack", 0777);	/* no, create it */
+-	/* and then the pipes */
+-	if (stat("/tmp/.z80pack/cpmsim.auxin", &sbuf) != 0)
+-		mkfifo("/tmp/.z80pack/cpmsim.auxin", 0666);
+-	if (stat("/tmp/.z80pack/cpmsim.auxout", &sbuf) != 0)
+-		mkfifo("/tmp/.z80pack/cpmsim.auxout", 0666);
++	/* 70snet: the auxiliary pipes live at a FIXED GLOBAL PATH upstream, so
++	   only one cpmsim could ever boot on a machine: auxout below is opened
++	   O_WRONLY, which BLOCKS until a reader appears, and a cpmrecv left over
++	   from another instance holds it. That is a hang with no output at all.
++	   Give each machine its own directory when one is named. */
++	{
++		const char *wd = getenv("SEVENTIESNET_WORKDIR");
++		if (wd != NULL)
++			snprintf(pipe_dir, sizeof(pipe_dir), "%s/.pipes", wd);
++		else
++			snprintf(pipe_dir, sizeof(pipe_dir), "/tmp/.z80pack");
++	}
++	snprintf(auxin_path, sizeof(auxin_path), "%s/cpmsim.auxin", pipe_dir);
++	snprintf(auxout_path, sizeof(auxout_path), "%s/cpmsim.auxout", pipe_dir);
++
++	if (stat(pipe_dir, &sbuf) != 0)
++		mkdir(pipe_dir, 0777);
++	if (stat(auxin_path, &sbuf) != 0)
++		mkfifo(auxin_path, 0666);
++	if (stat(auxout_path, &sbuf) != 0)
++		mkfifo(auxout_path, 0666);
+ 
+ 	pid_rec = fork();
+ 	switch (pid_rec) {
+@@ -429,11 +496,11 @@ void init_io(void)
+ 		exit(EXIT_FAILURE);
+ 		break;
+ 	}
+-	if ((auxin = open("/tmp/.z80pack/cpmsim.auxin", O_RDONLY | O_NONBLOCK)) == -1) {
++	if ((auxin = open(auxin_path, O_RDONLY | O_NONBLOCK)) == -1) {
+ 		LOGE(TAG, "can't open pipe auxin");
+ 		exit(EXIT_FAILURE);
+ 	}
+-	if ((auxout = open("/tmp/.z80pack/cpmsim.auxout", O_WRONLY)) == -1) {
++	if ((auxout = open(auxout_path, O_WRONLY)) == -1) {
+ 		LOGE(TAG, "can't open pipe auxout");
+ 		exit(EXIT_FAILURE);
+ 	}
+@@ -680,7 +747,7 @@ static BYTE cons_in(void)
+ 		busy_loop_cnt = 0;
+ 	}
+ 
+-	p[0].fd = fileno(stdin);
++	p[0].fd = (line_in_fd >= 0) ? line_in_fd : fileno(stdin);
+ 	p[0].events = POLLIN;
+ 	p[0].revents = 0;
+ 	poll(p, 1, 0);
+@@ -1112,8 +1179,28 @@ static void nets1_out(BYTE data)
+ static BYTE cond_in(void)
+ {
+ 	char c;
++	ssize_t n;
+ 
+ 	busy_loop_cnt = 0;
++	if (line_in_fd >= 0) {
++		/* cons_in() has already reported a byte is waiting. Retry only
++		   on EAGAIN/EINTR -- anything else (including a zero-length
++		   read, e.g. the FIFO's last writer closing) is a real error,
++		   not something to spin on forever. */
++		for (;;) {
++			n = read(line_in_fd, &c, 1);
++			if (n == 1)
++				return (BYTE) c;
++			if (n < 0 && ((errno == EAGAIN) || (errno == EINTR))) {
++				sleep_for_ms(1);
++				continue;
++			}
++			LOGE(TAG, "can't read line.in console");
++			cpu_error = IOERROR;
++			cpu_state = ST_STOPPED;
++			return (BYTE) 0;
++		}
++	}
+ 	if (read(fileno(stdin), &c, 1) != 1)
+ 		LOGE(TAG, "can't read console 0");
+ 	return (BYTE) c;
+@@ -1300,6 +1387,11 @@ static BYTE netd1_in(void)
+  */
+ static void cond_out(BYTE data)
+ {
++	if (line_out_fd >= 0) {
++		if (write(line_out_fd, (char *) &data, 1) != 1)
++			LOGE(TAG, "can't write to the telephone line");
++		return;
++	}
+ again:
+ 	if (write(fileno(stdout), (char *) &data, 1) != 1) {
+ 		if (errno == EINTR) {
+@@ -2049,6 +2141,142 @@ static void hwctl_out(BYTE data)
+  *	I/O handler for read hardware control
+  *	returns lock status of the port
+  */
++/*
++ *	70snet: the telephone line.
++ *
++ *	CBBS does its terminal I/O through the CP/M BIOS console vectors --
++ *	TYPE in cbbssub2.asm calls an address patched in by INIT -- and on
++ *	Randy Suess's machine that console WAS the modem. So when the
++ *	environment names SEVENTIESNET_LINE, ports 0 and 1 stop being a
++ *	terminal and become the phone line: a FIFO pair the supervisor drives.
++ *
++ *	Nothing is filtered in either direction. A modem line is 8-bit clean,
++ *	unlike cpmsim's auxiliary device, which drops CR and ^Z.
++ *
++ *	Port 0FFH is the modem control port cbbsmodm.asm expects. Its bits are
++ *	ACTIVE LOW:
++ *	    in  40H = NOT carrier detect   (clear = carrier present)
++ *	    in  20H = NOT ring indicator   (clear = ringing)
++ *	    out 10H = off hook
++ *	Idle is 0xFF: no carrier, not ringing. An unimplemented port would read
++ *	the same, so a supervisor that never speaks leaves CBBS waiting rather
++ *	than falsely connected.
++ */
++/*
++ *	70snet: Scitronics clock board at ports 24-27 (cbbsclks.asm).
++ *
++ *	This is how the timeline in spec §5.3 becomes real without touching
++ *	CBBS: the board reports the ROOM's date, and CBBS stamps its own
++ *	messages with it via RDDATE. A 1980 visitor's post is dated 1980
++ *	because the hardware said so, exactly as it worked in Chicago.
++ *
++ *	Protocol, read out of the 1981 source:
++ *	  CLKINIT does IN 24 and treats 0FFH as "no clock", then writes a PIA
++ *	  init sequence which we ignore.
++ *	  CLKDIG writes a digit index to port 24, reads port 24 back, and takes
++ *	  the HIGH NIBBLE as the BCD digit.
++ *	  RDDATE walks indices 10,9 then 8,7 then 12,11 to build "MM/DD/YY".
++ *
++ *	Index map (higher index is the tens digit of each pair), confirmed by
++ *	running CBBS's own T command against it rather than by guessing:
++ *	  12,11 year   10,9 month   8,7 day   5,4 hour   3,2 min   1,0 sec
++ *	Index 6 is unused. Index 5 is the hours TENS, which is why CLKDIG masks
++ *	that one with 70H -- it only ever holds 0-2.
++ *
++ *	The date comes from SEVENTIESNET_DATE. There is no fallback to the
++ *	host clock: a silently wrong date would put messages in the wrong era,
++ *	and spec §3 calls that unrecoverable.
++ */
++#define CLOCK_HOUR	20	/* evening -- when you actually called a board */
++#define CLOCK_MINUTE	15
++
++static BYTE clock_digits[13];		/* indices 0-12 */
++static BYTE clock_select = 0;
++static int clock_ready = 0;
++
++static void init_clock(void)
++{
++	const char *d = getenv("SEVENTIESNET_DATE");
++	int mm, dd, yy;
++
++	if (d == NULL) {
++		LOGE(TAG, "SEVENTIESNET_DATE is not set; refusing to invent a date");
++		exit(EXIT_FAILURE);
++	}
++	if (strlen(d) != 10 || d[4] != '-' || d[7] != '-') {
++		LOGE(TAG, "SEVENTIESNET_DATE must be YYYY-MM-DD");
++		exit(EXIT_FAILURE);
++	}
++
++	/* strlen()/separator checks above don't catch a non-digit standing in
++	   for one of the digit positions (e.g. "1980-1x-01"), which would
++	   otherwise silently feed garbage into the arithmetic below. */
++	{
++		static const int digit_pos[] = { 0, 1, 2, 3, 5, 6, 8, 9 };
++		unsigned i;
++
++		for (i = 0; i < sizeof(digit_pos) / sizeof(digit_pos[0]); i++) {
++			if (d[digit_pos[i]] < '0' || d[digit_pos[i]] > '9') {
++				LOGE(TAG, "SEVENTIESNET_DATE must be YYYY-MM-DD");
++				exit(EXIT_FAILURE);
++			}
++		}
++	}
++
++	yy = (d[2] - '0') * 10 + (d[3] - '0');
++	mm = (d[5] - '0') * 10 + (d[6] - '0');
++	dd = (d[8] - '0') * 10 + (d[9] - '0');
++
++	if (mm < 1 || mm > 12 || dd < 1 || dd > 31) {
++		LOGE(TAG, "SEVENTIESNET_DATE must be YYYY-MM-DD with a valid month (01-12) and day (01-31)");
++		exit(EXIT_FAILURE);
++	}
++
++	clock_digits[12] = yy / 10;  clock_digits[11] = yy % 10;
++	clock_digits[10] = mm / 10;  clock_digits[9]  = mm % 10;
++	clock_digits[8]  = dd / 10;  clock_digits[7]  = dd % 10;
++	clock_digits[6]  = 0;			/* unused by CBBS */
++	clock_digits[5]  = CLOCK_HOUR / 10;   clock_digits[4] = CLOCK_HOUR % 10;
++	clock_digits[3]  = CLOCK_MINUTE / 10; clock_digits[2] = CLOCK_MINUTE % 10;
++	clock_digits[1]  = 0; clock_digits[0] = 0;
++	clock_ready = 1;
++}
++
++static BYTE clock_in(void)
++{
++	if (!clock_ready)
++		init_clock();
++	/* CLKINIT probes before selecting anything; anything but 0FFH means
++	   "a clock is present". */
++	if (clock_select > 12)
++		return 0x00;
++	return (BYTE) (clock_digits[clock_select] << 4);
++}
++
++static void clock_out(BYTE data)
++{
++	/* CLKDIG writes the digit index it wants; CLKINIT and CLKCONT write
++	   PIA setup bytes, which are all outside 1..12 and select nothing. */
++	clock_select = data;
++}
++
++static BYTE phone_in(void)
++{
++	BYTE b;
++
++	/* Take the most recent line state the supervisor has written. */
++	while (phone_in_fd >= 0 && read(phone_in_fd, &b, 1) == 1)
++		phone_status = b;
++	return phone_status;
++}
++
++static void phone_out(BYTE data)
++{
++	if (phone_out_fd >= 0)
++		if (write(phone_out_fd, &data, 1) != 1)
++			LOGE(TAG, "can't report off-hook to the supervisor");
++}
++
+ static BYTE hwctl_in(void)
+ {
+ 	return hwctl_lock;
+diff --git a/cpmsim/srctools/cpmrecv.c b/cpmsim/srctools/cpmrecv.c
+index 5b7530bf..cfa4c03c 100644
+--- a/cpmsim/srctools/cpmrecv.c
++++ b/cpmsim/srctools/cpmrecv.c
+@@ -29,6 +29,7 @@ int signal_catched;
+ 
+ int main(int argc, char *argv[])
+ {
++	char auxout_path[600];
+ 	char c;
+ 	int fdin, fdout;
+ 	ssize_t n;
+@@ -41,7 +42,20 @@ int main(int argc, char *argv[])
+ 		puts("usage: cpmrecv filename &");
+ 		exit(EXIT_FAILURE);
+ 	}
+-	if ((fdin = open("/tmp/.z80pack/cpmsim.auxout", O_RDONLY)) == -1) {
++	/* 70snet: match the emulator's per-machine pipe directory. cpmsim
++	   opens auxout O_WRONLY, which blocks until we open the read end -- so
++	   if we look in the wrong place the whole machine hangs at boot with no
++	   output at all. */
++	{
++		const char *wd = getenv("SEVENTIESNET_WORKDIR");
++		if (wd != NULL)
++			snprintf(auxout_path, sizeof(auxout_path),
++				 "%s/.pipes/cpmsim.auxout", wd);
++		else
++			snprintf(auxout_path, sizeof(auxout_path),
++				 "/tmp/.z80pack/cpmsim.auxout");
++	}
++	if ((fdin = open(auxout_path, O_RDONLY)) == -1) {
+ 		perror("auxout pipe");
+ 		exit(EXIT_FAILURE);
+ 	}

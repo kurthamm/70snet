@@ -1,0 +1,23 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/registry"
+    },
+    {
+      "path": "apps/web"
+    },
+    {
+      "path": "packages/exchange"
+    },
+    {
+      "path": "apps/switchboard"
+    },
+    {
+      "path": "packages/cbbs-host"
+    }
+  ]
+}

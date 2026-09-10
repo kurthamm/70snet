@@ -1,0 +1,132 @@
+                         CBBSLINK.DOC
+                           07/12/81
+     DOCUMENTATION ON ASSEMBLING CBBS WITH "LINKASM.COM"
+
+
+     Due to the size of the CBBS program source, it has beenç
+broken up into several smaller .ASM files, which MUST beç
+assembled with LINKASM.COM.
+     At first, I would assemble CBBS by PIPping all the filesç
+together, but this took excessive time and requires quite a bitç
+of disk space.  I then wrote a program which combines theç
+files, eliminating all comments.  This, eventually, also becameç
+unwieldy.
+     The final solution was to come up with an assembler whichç
+could handle multiple source files so the files need notç
+physically be copied before assembling.
+     The only alternatives readily commercially available areç
+the Microsoft ASM-80 assembler or the Digital Research RMAC,ç
+which require separate assemblies, and a linkage editor toç
+combine object modules.  This would not be a bad solution, butç
+has the following drawbacks:
+
+1.   CBBS users would have to buy one of the assemblers.
+
+2.   When debugging, the listing would not have the properç
+assembly addresses, and lots of hex calculating would have toç
+be done.
+
+3.   Worst of all, no .SYM file would be generated.  This wouldç
+significantly impede debugging using Digital Researches SIDç
+(Symbolic Instruction Debugger).  I would not attempt to modifyç
+or maintain CBBS without SID.
+
+     I rewrote the CP/M assembler version 1.0, to handle a newç
+pseudo-op code, LINK.  I moved the I/O buffers out of theç
+middle of the code, to the end where they don't have to beç
+loaded with the .COM file.  I also increased the buffer sizes,ç
+to: 
+
+	1000H	.ASM BUFFER SIZE
+	800H	.HEX BUFFER SIZE (earlier versions were 400H)
+	400H	.PRN BUFFER SIZE
+
+
+     Extra code (JMP tables for hand-link editing, spaceç
+padding for subroutine expansion and patches, etc) wereç
+removed.  I incorporated a patch to handle lower caseç
+characters, and corrected it so it handles DB statements whichç
+include double quotes like:
+
+	DB	'I don''t know what you mean'
+
+     Each file has a LINK pseudo op as the last instruction inç
+the file.  CBBS.ASM is the first one, and results in linking toç
+all the rest.  To run the assembly, execute:
+
+                 LINKASM CBBS.SHP [symdisk:]
+
+Where S is the source disk, H the hex disk, and P the prn disk.
+     This is the same as the normal CP/M assembler, i.e. Z mayç
+be used for either the .hex or .prn disk, and X may be used forç
+the .prn disk, to direct it's output to the console. Added isç
+the "symdisk:" (e.g. A: or B: with no filename)  whichç
+specifies a symbol table for use under SID will be  written asç
+CBBS.SYM.  It is partially sorted (all As then all  Bs, etc).
+     For example, an assembly of CBBS on a 2 disk system, withç
+LINKASM on A:, and CBBS .ASM files on B:, with the .HEX andç
+.SYM files written to B:, and the .PRN  file thrown away, wouldç
+be:
+
+                     LINKASM CBBS.BBZ B:
+
+
+     If for some reason you do not like the idea of LINKASM,ç
+i.e. perhaps you insist on having Macros in it, then edit out ç
+the  LINK pseudo ops from each file, and PIP the followingç
+files together, in order, end-to-end.  ...But the result wouldç
+be a relatively unwieldy .ASM file of perhaps  128K or more,ç
+and over 7000 lines.  Without stripping lots of comments, itç
+couldn't even be edited on 1 single density disk.
+     The utility program "FAST" has been included on this disk. ç
+If you have a moderate amount of memory, it allows options suchç
+as full track read and/or write buffering, and  directoryç
+buffering, on 1 or more disks.
+     A brief overview of FAST.COM:  Just say FAST before yourç
+other command, such as:
+
+                FAST [BY] LINKASM CBBS.BBZ B:
+
+<<CP/M 1.4 only>> 
+
+     This says you want B disk buffering, with the Y saying youç
+want all types (1 track read buffer, 1 track write buffer, andç
+a directory buffer (seek buffer)).  See FAST.DOC for details. ç
+This excellent speeder-upper was written by Bob Van Valzah. Seeç
+FAST.DOC for details.
+                ASSEMBLY ORDER FOR CBBS FILES
+
+
+		CBBS	.ASM
+		CBBSFUNC.ASM
+		CBBSBYE	.ASM
+		CBBSSUMM.ASM
+		CBBSENT1.ASM
+		CBBSENT2.ASM
+		CBBSRTRV.ASM
+		CBBSOPER.ASM
+		CBBSKILL.ASM
+		CBBSDISK.ASM
+		     !
+COMPUTIME CLOCK:  IF CLOCKC---> CBBSCLKC.ASM----+
+		     !				!
+SCITRONICS CLOCK: IF CLOCKS---> CBBSCLKS.ASM	!
+		     !		    !		!
+		     !<-------------+<----------+
+		     V
+		CBBSSUB1.ASM
+		CBBSSUB2.ASM
+		CBBSSUB3.ASM
+		     !
+		  IF PMMI------>CBBSPMMI.ASM----+
+		     !				!
+		  IF HAYES----->CBBSHAYS.ASM--->!
+		     !				!
+		  IF IDS------->CBBSIDS.ASM---->!
+		     !				!
+		  IF SERMODM--->CBBSMODM.ASM--->!
+						!
+		     +<-------------------------+
+		     !
+		     V
+		CBBSWORK.ASM
