@@ -1,0 +1,184 @@
+		 CBBS34.DOC 6/18/80
+
+    N-O-T-E to previous CBBS implementors wishing to upgrade toç
+version 3.4: You need only add a fourth line to the file "NEXT"ç
+which contains a 5 digit, maximum number of active messages. ç
+Note that this is character-string compared with the number inç
+the third line, which is the current number of active messages. ç
+(I.E. don't put 00320 in line 5, put in (space) (space) 320. Asç
+long as you are running a version of CBBS which does not do theç
+message packing, this SHOULD be the only change required. Letç
+me know if it isn't.
+    Since going to the version of CBBS which did not re-number ç
+and pack the messages, CBBS has had a problem with the time itç
+took to kill a message.  That has now been solved with CBBSç
+3.4.
+    The primary cause of the slow speed of "K" was that the  ç
+entire summary was passed thru memory, to "WORKFILE", deletingç
+the single message summary being killed.  This is similar toç
+the overhead of doing an edit to a file, except that theç
+"editor" (CBBS) is resident.
+    I had been looking for a long time for a simple way to ç
+speed up the kill.  It appeared that fancy linked-lists, orç
+some other technique was required, but that went against theç
+grain of the idea of CBBS files: that they all be simple,ç
+sequential ASCII files so you may readily use existingç
+utilities on them, such as editors, etc.
+    The solution was to only "flag" the summary as having ç
+deleted a message, but to otherwise fully process it. Manyç
+people had suggested this technique, perhaps with a file orç
+table of killed message numbers to look at first. But I didn'tç
+want to add that level of complexity to CBBS.
+    Now, when a message is killed, the message file is ç
+processed, with the message being physically deleted andç
+written to "KILLED" (a history file of messages);  The "NEXT"ç
+file is processed to update the # of active messages; then theç
+summary is flagged.  How?  First some background:
+    Some time ago, I made the "Q" and "S" search commands do a ç
+binary search for the message.  However, I didn't go past oneç
+extent (16K) because of the complexity. For CBBS 3.4, I didç
+change the summary scan routine to do a full binary search ofç
+the summary, assuming (as I recall) that the summary wasn'tç
+more than 2 extents long.
+    I also made the binary search routine a subroutine.  ç
+Therefore, it could be called from both the summary routines,ç
+and the kill routine.  So, to "flag" a message in the summaryç
+as killed, I just do a binary search for the number, then readç
+ahead for the first digit of the # of lines in the message, andç
+overwrite an "X" to it.  I then write the sector back in place,ç
+unless the "X" occurred in the last byte of the sector, inç
+which case "WRBYTE" already wrote it back.
+    The routine which processes the entire summary file thruç
+memory is no longer automatically run by "K" (therefore theç
+time saving).  So periodically, the system operators must runç
+the new operator command "PURGE" which will pass the summaryç
+thru memory, deleting all "X"ed messages. The summaries of theç
+deleted messages are shown, as is the total number of messagesç
+deleted.  You need only ensure that the free space on the diskç
+never goes below the length of the summary file, since theç
+temporary file created by PURGE is nearly as long as theç
+summary.  (See next paragraph).
+    Additional enhancements in 3.4:  You now set the maximim ç
+number of messages entered by any one caller, the number ofç
+comment lines entered, and most importantly, the maximum numberç
+of active messages in the system.  This was implemented becauseç
+of the need for the workfile to delete messages and to PURGEç
+the summary file.  If the disk gets full so that K or PURGEç
+won't work, you have to PIP over message files to another diskç
+until there is space, then K or PURGE, then eventually PIP theç
+messages back. Now, by limiting the maximum number of activeç
+messages, CBBS will simply not accept any more at this point. ç
+NOTE this is not a test of how full the disk is, since messageç
+length is not taken into account.
+    At CBBS/Chicago, running two 8" drives, we typically run ç
+with 25-35K free on the message disk, and have 320 as ourç
+number of active messages.
+
+		       ----------------
+		     Ideas for the future:
+
+    Randy is interested in adding some functions, particularlyç
+for you implementers of CBBS.  For example, a special passwordç
+which would allow CBBS operators to exchange implementationç
+ideas, problems, solutions, and for us to leave new
+modifications online.
+    In general, we would like to enhance the function of CBBS,ç
+perhaps going to an overlay scheme to handle a wider variety ofç
+functions, without CBBS.COM getting unwieldy.
+    Some operators, notably Lewis Moseley of CBBS/Atlanta, have ç
+split all the user-specific functions out of the main menu, andç
+put them into a separate "U" function menu.  These include theç
+Case, Duplex, Null, Prompt bell, Video backspace, and eXpertç
+user functions.  The reason is to make the main menu lessç
+crowded.
+    I, too have been thinking of this and soliciting comments. ç
+The comments are sufficiently varied that there is no clear cutç
+solution.  Some thing dual menus to be more confusing than aç
+single menu.  Others say don't have another menu, but go to twoç
+byte commands, such as MD for "Mode Duplex", and MX for "Modeç
+eXpert".  A nice idea, too.  "The jury is still out" on thisç
+one.
+    Some have suggested deleting the "V" function, and just ç
+echoing characters if DEL is used, and echoing backspaces ifç
+control-H is used.  Randy vetoed that for good reason:  He hasç
+a video terminal with a handy-to-use backspace key, whichç
+generates a DEL, but he wants the cursor to back up.  I see noç
+problem with "V" remaining.
+		       ----------------
+
+    Here is a list of the changes since release 3.2 of CBBS, byç
+file:
+
+CBBS.ASM: Modified the documentaion on the contents of fileç
+"NEXT".  Added following equates:
+ 	ECOUNT: number of messags any one caller may enter. 	
+	CCOUNT: number of comment lines any one caller mayç
+enter.
+	Added "TEST" equate to generate a system which doesn'tç
+look at the sense switch, defaults all files to the "logged inç
+drive", and JMPs to 0 when you use the "G" command.  Used toç
+create "CBBSTEST.COM" whicn is to allow you to become familiarç
+with CBBS on your own machine.
+
+CBBSBYE.ASM:
+	Code to limit the number of comment lines.
+
+CBBSDISK.ASM:
+	Add label "SETOPEN" which just opens FCB; Also add ç
+usage of "UNRDBYT" to replace earlier code which dinked withç
+the pointer to the disk read buffer; Also modify routineç
+"EXTEND" to efficiently handle multiple extents.  The earilerç
+version only went to the end of the file if it was in the firstç
+extent.  This routine keeps opening extents if necessary toç
+find the end.
+
+CBBSENT1.ASM:
+	Modifications to limit the number of active messages ç
+allowed in the system, and the maximum number entered by anyç
+one caller.
+
+CBBSFUNC.ASM:
+	Added label "DEFUNCT" which kills stacked lines.  Then ç
+modified several places in many other modules, which did a STAç
+of a CR into INBUF to kill the stacked lines.  They now justç
+JMP to DEFUNCT.  N-O-T-E you don't have to change any of yourç
+old routines.  This is a new, but compatible way to killç
+stacked lines.
+
+CBBSKILL.ASM:
+	MAJOR REWRITE to just flag summaries as killed. Add ç
+"PURGE" routine for operators to clean up the summary file ofç
+flagged messages.
+
+CBBSOPER.ASM:
+	Add PURGE to the command table.
+
+CBBSSUB1.ASM
+	Put in "DCX H" to back up buffer pointer when the ç
+buffer is filled.  At label RDFULL.
+	Also fix bad JMP in RDLINE (Thanks to Lewis Moseley for ç
+finding this) 
+
+CBBSSUB2.ASM:
+	Add moving "CCOUNT" to "CLEFT" and moving "ECOUNT" to ç
+"ELEFT", in the REINIT routine.
+	Put in test to not jump to PROM if "TEST" mode is true.
+
+CBBSSUB3.ASM:
+	Added missing "INX H" in the flush test.  (Did not ç
+properly test if running under FAST).
+
+CBBSSUMM.ASM:
+	Enhance the binary search to handle two extents, and ç
+split it out as a subroutine so it may be used to search theç
+summary on a "flag" kill.  Also split out "SUMCOMP" to scanç
+from current summary position, to match the contents ofç
+"MSGNO".  Also modified the summary print to ignore "flagged"ç
+summaries.
+
+CBBSWORK.ASM:
+	Add ELEFT, CLEFT; and other minor documentation. Add ç
+"NPURG" (# PURGED).
+	Add "TEST" equate to allow assembling a system which ç
+may be run as is, with no modem, for you to try out
+when you receive CBBS.

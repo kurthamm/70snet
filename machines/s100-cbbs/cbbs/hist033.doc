@@ -1,0 +1,192 @@
+			HIST033.DOC
+12/04/81 08:49:44	 <==== Last update.  Ward Christensen
+
+This is a file of all CBBS historical comments from v 3.3 on as
+of 07/15/81.  I did a full file compare of all cbbs .ASM files.
+Changes not otherwise indicated are called "Misc:", i.e. no
+date associated with them. 
+
+In July 1981, many of the prompting messages were slightly
+shortened; More easy "escape" from some questions was allowed,
+etc.
+
+Got rid of "V" command.  ^H always backspaces, del and "_"
+echo.
+
+================> CBBS.ASM - MAINLINE
+
+Misc:	Added LEV equate for VER/MOD/LEV;
+	
+
+	02/02/80 01
+Make "Y/N did I get your name right?" call GETVARN, not GETVAR.
+Minor mods to last name question;  Split out print of
+statistics (caller, hi msg, # msgs) so it can be called as the
+"#" (stats) function. 
+	02/03/80 02
+Put in "fast" equate
+	02/05/80 03
+Delete FILEMSK, put in FILEDIV (divisor for last 2 digits of
+msg # to decide how many msg files)
+	04/21/80 04
+Mod doc of contents of file "NEXT" add "ECOUNT" and "CCOUNT"
+equates
+	06/23/80 05
+Put in "TEST" switch to generate code which doesn't look for a
+modem.  Also all disk files are assumed to be on the logged on
+disk.
+
+---------------- V 3.4
+
+	11/08/80
+BUMP ECOUNT, CCOUNT TO 7, 35
+	11/10/80 06
+Add HELP routines; ADD "-" backing up last name to first;  also
+close "NEXT" file after updating. (Technically not needed, but
+some BIOS's use the close to flush their buffers).
+---------------- V 3.5
+	11/15/80 07
+Save hi msg # at opening so "-" retrieve will start from there
+and go back;
+	05/17/81 08
+Put in Scitronics clock, and equates to select whether
+Scitronics or Computime clock is available.
+	07/05/81 09
+Change logging so CRLF is written B-E-F-O-R-E someone logs in,
+so e.t. is on same line.
+	07/06/81 10
+Put in mods for "SPECIAL" CBBS/Chicago needs, such as de-
+selecting any drive (so steppers stay cool) upon hangup.
+	07/28/81
+To the "NEXT" file notification process, in addition to "/"
+which hangs up on a user, and "*" which flags them as a twit, I
+added "+" which causes the scan to continue.  Thus, to leave a
+personal message for "Lloyd Smith", but STILL have him see the
+">> FLASH <<" that "everyone" sees, the following NEXT file
+layout may be used:
+	08712
+	  258
+	   45
+	   90
+	[LLOYD,SMITH,CALL ME TONIGHT IF YOU CAN  <<WARD>>
+	]+[*,*,
+	  >> FLASH <<
+	7/28 more functions, type:  news
+	]
+
+Thus "LLOYD,SMITH," matches him, types the message, but the "+"
+after the "]" end-of-message-terminator, says to continue.
+	09/13/81
+Don't turn off CTLKSW before typing "you are caller..." etc.
+Lewis Moseley, CBBS/Atlanta, pointed out this allows "twit" to
+^K right to main menu, and avoid "notify" function. ALSO write
+date/time to logging tty if both CLOCK and TTY
+	10/11/81
+Log date/time to logging tty if TTY and CLOCK are true.
+	10/17/81
+Used to store "city" in "MSGTO".  Change to storing it in
+"SUBJ" for compatibility with "CONT" operator command which
+wants the "who to" field preserved.
+
+================> CBBSFUNC.ASM - MAINLINE PART 2
+
+	02/02/80 01
+PUT IN "#" COMMAND
+	04/21/80 02
+ADD "DEFUNCT" ROUTINE TO KILL STACKED LINES
+
+---------------- V 3.4
+
+	11/08/80 03
+Have "HELP" branch to help, not just "H"
+	11/15/80 04
+Add HELP msg #'s to GETVAR;  Re-order "?" prompt for functions
+to group "major" and "minor" functions.
+---------------- V 3.5
+	05/18/81 05
+Write "]PASSWORD name" on password violation.
+Split expert user toggle to be a subroutine
+	07/06/81 06
+Add "NONE" command to suppress dup chars typed (' ' <= char <
+'0'); also add "NEWS" command; Zap off the "INHELP" switch used
+to filter "X" thru; Don't CR/LF to file after password
+violations logged; Add "NEWS" function to type NEWS file
+	07/11/81
+Put in typing of only "headlines" in NEWS;  Delete the actual
+printing of functions from this file, put them in a file
+"function" which allows operators to "customize" this area more
+easily.ˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇˇ short commands;  Change logic of testing for
+4-letter commands from LXI H,ANSWER to PUSH/POP saving HL;
+	07/15/81
+Put in table lookup, as there are starting to be quite
+a few 4 byte commands.
+	07/19/81
+Get rid of "V" command.  ^H backs up, "_" or 7FH echoes.
+Say its not necessary, if "V" is used.
+	09/13/81
+Hmmm..  Put "V" back in (!), but since the defaults work for
+"most people", a new "V", suggested by Jim Willing,
+CBBS/Beaverton OR, is to ask for what char is wanted to back up
+with.  Any character except a-z, A-Z, 0-9, ";", CR, or TAB, are
+allowed
+
+================> CBBSBYE.ASM - GOOD BYE FUNCTION
+
+	02/02/80 01
+Don't print "OK - OK - OK -" if stacked comments LINES
+	04/21/80 02
+Limit # of comments lines
+
+---------------- V 3.4
+	11/08/80 03
+* Write help keywords which aren't found, to the LOG.
+* Make help keyword buffer larger (20, was 10)
+* Prompt comments with line #.
+---------------- V 3.5
+	11/10/80 04
+Add help routine msg #'s to getvar routines; prompt comments
+with a line #
+	07/06/81  05
+Don't write crlf after elapsed time
+	07/11/81
+When double c/r entered in comments, ask: "y/n done".  Idea
+from Dav Holle, Chicago. Also, change so help keywords written
+with leading, not trailing, cr/lf to be consistent with other
+usage.
+	07/12/81
+Add "Y/N Done?" prompt after pressing return.
+	07/15/81
+Moved INTQF here from CBBSDISK to keep file sizes more even for
+editing, and also because the other help function was here.
+
+
+================> CBBSSUMM.ASM - SUMMARY FUNCTION
+
+	05/10/80 01
+Enhance binary summary search and split out as subroutine; 
+split out "SUMCOMP" to scan from current file position,
+matching "MSGNO".
+	05/18/80 02
+Ignore "flagged" summaries ("X" in first byte of # of lines)
+
+---------------- V 3.4
+
+	11/15/80 03
+Add help msg #'s to GETVAR
+---------------- V3.5
+	05/18/81 04
+Add "=" as search command, i.e. S;1,=WARD
+	07/06/81 04 continued
+Significant rewrite of scan logic.  Supports boolean "AND", or,
+and and "OR" searches.  EITHER (KEYWORD) OR
+(FIELDCHAR)=(KEYWORD) ARE SUPPORTED.   EXAMPLES:
+S;1,CP/M		CP/M IN ANY FIELD
+S;1,F=WARD&S=CBBS	FROM WARD, AND ABOUT CBBS
+S;1,F=WARD|F=RANDY	FROM WARD OR RANDY
+S;1,WARD,RANDY,CP/M	WARD OR RANDY OR CP/M IN ANY FIELD
+
+'|' OR ',' MEAN "OR", '&' MEANS AND.  IF A LONE FIELD
+OR ONE FOLLOWED BY AN "OR" MATCHES, THE TEST PASSES,
+I.E. "CBBS|CP/M&TRS		WILL PASS A-N-Y CBBS,
+	BUT ONLY CP/M AND TRS
+	07/òúê

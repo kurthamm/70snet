@@ -1,0 +1,23 @@
+00009,21,06/08/80,WARD & RANDY,ALL
+CBBS HARDWARE/SOFTWARE REQMTS,NONE
+CBBS (tm) info. of interest to potential owner/operators:
+
+Language:		8080 Assembler; ~8300 lines of source,
+			shipped as source code and utilities,
+			on 2, 8" single density disks.
+Op. sys.:		Standard CP/M (at 0000H)
+Memory size:		28K or larger
+Diskette requirements:	Single 8" 'OK', dual 8" best.
+Modem:			PMMI, IDS, Hayes supported, as well
+			as skeletal code for an outboard modem
+			(PMMI 600 baud is "very nice")
+
+Potential CBBS implementors should be comfortable with CP/M:
+(BIOS modification, etc.), and with 8080 assembly language.
+
+Versions of CBBS have been run on everything from a single
+28K Northstar, a dual Northstar, a dual 8" system, to a
+dual Thinkertoys double density system with 64K. (all did their
+own conversion from our 8" single density disks).
+P.S. one owner is attempting to get it going on an H8.  We'll
+leave a message if he gets it going (and lets us know).

@@ -1,0 +1,66 @@
+diff --git a/cpmsim/srcsim/simio.c b/cpmsim/srcsim/simio.c
+index 8eaa2d1e..b02b17bb 100644
+--- a/cpmsim/srcsim/simio.c
++++ b/cpmsim/srcsim/simio.c
+@@ -265,6 +265,8 @@ static BYTE time_in(void);
+ static void time_out(BYTE data);
+ static BYTE delay_in(void);
+ static void delay_out(BYTE data);
++static BYTE phone_in(void);
++static void phone_out(BYTE data);
+ static BYTE hwctl_in(void);
+ static void hwctl_out(BYTE data);
+ static BYTE speedl_in(void), speedh_in(void);
+@@ -332,7 +334,8 @@ in_func_t *const port_in[256] = {
+ 	[ 47] = cond4_in,
+ 	[ 50] = nets1_in,
+ 	[ 51] = netd1_in,
+-	[160] = hwctl_in	/* virtual hardware control */
++	[160] = hwctl_in,	/* virtual hardware control */
++	[255] = phone_in	/* 70snet: modem control (cbbsmodm.asm) */
+ };
+ 
+ /*
+@@ -375,6 +378,7 @@ out_func_t *const port_out[256] = {
+ 	[ 50] = nets1_out,
+ 	[ 51] = netd1_out,
+ 	[160] = hwctl_out,	/* virtual hardware control */
++	[255] = phone_out,	/* 70snet: modem control (cbbsmodm.asm) */
+ 	[161] = host_bdos_out	/* host file I/O hook */
+ };
+ 
+@@ -2049,6 +2053,34 @@ static void hwctl_out(BYTE data)
+  *	I/O handler for read hardware control
+  *	returns lock status of the port
+  */
++/*
++ *	70snet: modem control port 0FFH.
++ *
++ *	CBBS 3.5's outboard-modem driver (cbbsmodm.asm) reads carrier and ring
++ *	from this port and writes off-hook to it. The bits are ACTIVE LOW:
++ *
++ *	    input  40H = NOT carrier detect	(clear = carrier present)
++ *	    input  20H = NOT ring indicator	(clear = ringing)
++ *	    output 10H = off hook
++ *
++ *	Spike stage: carrier is hardwired present so CBBS proceeds to look for
++ *	a CR. Task 6 drives this from the supervisor over a FIFO.
++ */
++#define PHONE_CARRIER	0x40
++#define PHONE_RING	0x20
++
++static BYTE phone_status = (BYTE) (0xff & ~PHONE_CARRIER);
++
++static BYTE phone_in(void)
++{
++	return phone_status;
++}
++
++static void phone_out(BYTE data)
++{
++	UNUSED(data);
++}
++
+ static BYTE hwctl_in(void)
+ {
+ 	return hwctl_lock;

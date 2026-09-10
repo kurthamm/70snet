@@ -1,0 +1,206 @@
+		  DOCUMENTATION ON THE FILES
+		CONTAINED ON THE CBBS .ASM DISK
+
+Last update 11/24/81 - revise for 3.5:
+Change CEBIOS.ASM to NEWBIOS.ASM; (then moved it to the otherç
+disk - this one's full!); Delete LIST.COM, add T.COM; Addç
+CRCK.COM and FILES.CRC;  Change CBBSCLOK.ASM to CBBSCLKC &ç
+CBBSCLKS.ASM;  New version of D.COM;  Delete FMAP.COM.  Diskç
+too full;  Delete DU.COM;
+
+		-CBBSASM.3-5
+Disk name and serial used for my disk cataloging program
+
+		CBBS.ASM
+The first .ASM file of CBBS itself.  Assemble with LINKASM; Seeç
+CBBSLINK.DOC on other disk.
+
+		CBBSBYE.ASM
+CBBS linked .ASM file, (G)ood bye and (H)elp functions
+
+		CBBSCLKS.ASM
+CBBS linked .ASM file, clock functions, Scitronics.
+
+		CBBSCLKC.ASM
+CBBS linked .ASM file, clock functions, CompuTime.
+
+		CBBSDISK.ASM
+CBBS linked .ASM file, all disk I/O functions.
+
+		CBBSENT1.ASM
+CBBS linked .ASM file, message entry function.
+
+		CBBSENT2.ASM
+CBBS linked .ASM file, message entry sub-functions
+
+		CBBSFUNC.ASM
+CBBS linked .ASM file, main function menu
+
+		CBBSHAYS.ASM
+CBBS linked .ASM file, D.C. Hayes modem dependent code.
+
+		CBBSIDS.ASM
+CBBS linked .ASM file, IDS modem dependent code
+
+		CBBSKILL.ASM
+CBBS linked .ASM file, message kill function.
+
+		CBBSMODM.ASM
+CBBS linked .ASM file, serial modem dependent code.
+
+		CBBSOPER.ASM
+CBBS linked .ASM file, operator functions
+
+		CBBSPMMI.ASM
+CBBS linked .ASM file, PMMI modem dependent code
+
+		CBBSRTRV.ASM
+CBBS linked .ASM file, message retrieve
+
+		CBBSSUB1.ASM
+CBBS linked .ASM file, non-disk subroutines
+
+		CBBSSUB2.ASM
+CBBS linked .ASM file, more non-disk subroutines
+
+		CBBSSUB3.ASM
+CBBS linked .ASM file, and more non-disk subroutines
+
+		CBBSSUMM.ASM
+CBBS linked .ASM file, summary function
+
+		CBBSWORK.ASM
+CBBS linked .ASM file, work area at end of program
+
+		CEBIOS.ASM
+(Now called NEWBIOS.ASM - see it alphabetically under thatç
+name)
+
+		COOKBOOK.DOC
+Miscellaneous comments to assist in the installation of CBBS.
+
+		CRCK.COM
+This program, by Keith Petersen, modified by Ronnie B Stone toç
+make its output more abbreviated, computes the CRC (cyclicalç
+Reduncancy Check) of any file.  Type: CRCK for usage infor≠
+mation.  Specifically, before originally distributing thisç
+disk, the following command was typed:
+	CRCK *.* F
+which created a file "CRCKLIST.CRC".  This was renamed toç
+FILES.CRC, so that if YOU run CRCK *.* F you wouldn't "wipeç
+out" the one created earlier.  Use this program to check thatç
+the files on the disk have not been "corrupted".  The CRC of aç
+single file (CRCK CBBSFUNC.ASM for example) should agree withç
+the CRC given in the FILES.CRC file.
+
+		D.COM
+D shows what's different on the disk from what was sent.  ç
+Before shipping, we did "D SET" which set all the names into ç
+D.COM. From then on, typing just D tells the difference (what ç
+was added, what was deleted).  If you want to use it for other ç
+purposes, the options are obtained by typing: D H
+
+NOTE that the SET, ADD, and DEL options all cause D to eraseç
+itself from the directory, then write itself back.  Thus theç
+disk may not be write protected, and "D" may not be renamed,ç
+(such as if you already have a program named D in your ç
+directory) because it will erase WHATEVER is called D.COM, and ç
+will write itself back as D.COM.  You may patch it under SID or ç
+DDT - it's own name is stored at 105H.
+
+		FILES.CRC
+A file of the CRC of each file on disk (except for itself,ç
+which cannot be done).  See CRCK.COM
+
+		FILES.DOC
+This file.
+
+		FIND.COM
+Used to find character strings in several files.  Use it to
+find in what .ASM file a particular label is, or is used; forç
+example, to look for references to the COMPR and KEYCHR
+routines: (Note it finding ANY matching string)--+
+						 |
+A>find b:cbbs*.asm compr|keychr		+--------+
+FIND.COM 11/08/80			|
+----> FILE CBBSDISK.ASM			V
+ 271	WRLINE	CALL	SETTABS	;TAB COMPRESS THE LINE
+----> FILE CBBSENT2.ASM
+----> FILE CBBSSUB1.ASM
+  29	CTLCKS	CALL	KEYCHR	;GET CHR
+----> FILE CBBSRTRV.ASM
+----> FILE CBBSCLKC.ASM
+----> FILE CBBSCLKS.ASM
+----> FILE CBBSBYE .ASM
+ 258	BYECR	CALL	KEYCHR	;GET A CHAR
+ 262	BYECR2	CALL	KEYCHR
+----> FILE CBBSKILL.ASM
+ 154		CALL	COMPR
+ 168		CALL	COMPR	;MATCH?
+	..etc..
+
+Thus FIND did a scan of all CBBS*.ASM files and found the onesç
+which matched that character string.  Find can be used forç
+almost any  data, of almost any length.  To specify a tab, codeç
+"_".  To  specify multiple search arguments, separate them byç
+"|".  Thus,  to find all "IN" and "OUT" instructions in allç
+.ASM files on  B:, type:
+
+	find b:*.asm _in_|_out_
+
+	Note the use of the "_" tabs to prevent finding all ç
+"in" such as "INX" etc.
+	Find translates what is read from disk, to upper case,ç
+so upper/lower case presents no problem.
+
+		LINKASM.COM
+This is the program which links (at source time) all theç
+CBBS.ASM files together.  See CBBSLINK.DOC.  You may wish to doç
+as I have, rename this to LASM if you get tired of he long name
+"LINKASM".
+
+		NEWBIOS.ASM
+This is the BIOS for CBBS.  It replaces the older BIOS whichç
+was for CP/M 1.3.  This is a 1.4 version.  Sorry, not 2.2 yet. ç
+Of interest are the techniques used in console status, consoleç
+in, and console out, which relate to having a remote console -ç
+the testing of a sense switch for local or remote operation,ç
+and the returning from BOTH console status and console in, ofç
+an "0FFH" upon carrier loss (required by CBBS.ASM).  The olderç
+1.3 version loaded CBBS by "brute force", while this BIOS doesç
+it through the auto-command feature of CP/M (whereby if youç
+patch a command into the CCP buffer, it will automaticallyç
+execute).
+
+Also of interest, since most CBBS systems run 24 hours a day,ç
+is the logging of disk errors, into a table at the end of theç
+BIOS.  Each time the system is warm booted (the operator XCPMç
+command from CBBS), the errors, if any, are printed.  Thisç
+helps detect marginal drives or media. 
+
+		RESTORE.ASM	12/17/80
+A program to restore killed messages.  Fetches the killed ç
+message from "KILLED", merges it back in with MESSAGE.Xnn, adds ç
+1 to the count of active messages stored in "NEXT", and then ç
+binary searches the summary, and un-"X"es the summary. Note ç
+therefore that it only completely works if the PURGE command ç
+has not yet been run under CBBS, which would have deleted the ç
+"X"ed summary.  However, all other processing will have ç
+completed properly.  You mighe hand-edit the summary in, or use ç
+BUILDSUM to get it back in.
+
+ 		T.COM
+In the FIND example above, a line number was given.  T is  likeç
+TYPE but allows a starting line number.  Typing:
+	T CBBSSUB1.ASM 230
+would start listing at line 230.  
+
+Details on usage of "T" is obtained by typing just "T".
+
+You may "browse" the CBBS .ASM files by typing:
+	T CBBS*.ASM
+at which time ^S will hold the output, ^X will skip to the nextç
+file, or ^C will abort completely.  To minimize disk usage, Tç
+buffers memory as full as possible.  Thus you see a delay fromç
+typing the T command, to it actually starting to type, asç
+memory is filled.

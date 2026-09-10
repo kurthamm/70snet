@@ -1,0 +1,276 @@
+			CBBS3.DOC, 02/11/80
+			Reviewed 11/28/81
+
+CBBS Users:
+
+     This file was made by looking thru the CBBS .ASM files to ç
+see what was new in the "Version 3" code, and notes made.  This ç
+file is primarily of interest to people who have implemented ç
+previous versions of CBBS, but contains information of general ç
+interest, such as description of CBBS operator commands. ç
+However, CBBSOPER.DOC should be consulted as the "true" source.
+     As with all documentation, please communicate errors in ç
+this documentation back to us, either via CBBS, or by mail.  ç
+(Ward Christensen, 688 E. 154th St., Dolton, Il. 60419).
+    Heres's some more documentation on LINKASM: (see also ç
+CBBSLINK.DOC)
+
+	To link to the next .asm file, use:
+
+	LINK	filename	;optional comments
+
+where filename is the name (no filetype).  For example, my PROM ç
+monitor is in 2 .asm files - PROMON.ASM, and PROMIO.ASM.  The ç
+end of PROMON.ASM contains:
+
+	LINK	PROMONIO	;NEXT .ASM FILE
+
+     The last file simply ends as normal, i.e. no LINK.
+
+     The format of the LINKASM command is just like CP/M  ç
+ASM.COM, i.e.
+
+	LINKASM filename.ahp
+
+where a is the asm disk (a,b) (h) is the hex disk (a,b,z), (p) ç
+is the .prn disk (a,b,x,z).
+     If you want to write a symbol table, add an A: or B: after ç
+the rest:
+
+	LINKASM CBBS.BAZ B:
+
+will assemble CBBS.ASM from the B disk, put the HEX on A, throw ç
+away the .PRN, and write the .SYM to B:
+     Note this is a "cheap and dirty" SYM file - only partly ç
+sorted (by first letter).  Thus all the "A"s are together, etc, ç
+but not strictly in alphabetic sequence.  
+			---------------
+
+			 CBBS CHANGES:
+
+****************	CBBS.ASM links to CBBSFUNC
+
+     Nulls now sent with the time.  Also a version number is  ç
+printed, just to get peoples's attention that something is new.
+     The "Y/N is this your first time..." question now looks atç
+the  answer to determine if it was answered in lower case.  Ifç
+so,  sets lower case mode.  If not, then..
+	if first time user,
+		ask if lower case can be handled
+	if not first time user
+		ask if lower case can be handled if they
+		go to message entry.
+The case question is asked only once.
+    A 1 digit speed character is written to the log at login,ç
+(1,  3, 4, 6).  For unknown speeds, an "X" is logged (such asç
+local use of CBBS.
+     When logging on, a name is looked up in the NEXT file,ç
+same as  always.  Format is:
+
+[firstname,lastname,message    .......
+]
+
+firstname or lastname can end with an * to match any chars.
+
+     If the ] is followed by a / then that  caller is im ç
+mediately dumped.  If ] is followed by * then they are flagged ç
+as a twit, i.e. no message entry or kill allowed
+
+     So, for example, to flag ALFRED NEUMAN as a twit, and
+immediately dump RED ROVER:
+
+[ALF*,NE*,You'r mad!
+]*[RED,ROVER,Don't bother coming over!!
+]/
+     The "*" goes with "ALF*,NEU*" and the / with RED,ROVER. 
+
+****************	CBBSFUNC.ASM (link CBBSBYE)
+
+     New "A" command to alter baud rate.   62-710 allowed.  ç
+Says "OK, press any key to continue at that speed" (or some ç
+thing like that)
+     New "V" command toggles between echoed (between back ç
+slashes) and BS space BS type video backspaces.
+     "N" command number of nulls can now be set from  0 to 255 ç
+(!!)
+     NOTES file is typed automatically when password is ç
+entered.  Use ctl-C or K if not wanted.  (You like this?)
+     Control-C wait before Welcome and Bulletin is now ç
+lengthened to about 3/4 second (from 1/2).  
+     A person using only a last initial is now considered a ç
+"twit", i.e. no E or K functions.
+
+
+***************		CBBSBYE links to CBBSSUMM
+
+     New help function stuck in this .ASM file just because  ç
+there was lots of room.  You are now asked to enter a keyword, ç
+or ? to list all keywords, or ?? to list  keywords and a brief ç
+(1 line) explanation.
+
+Help file format is:
+
+[KEYWORD=one sentence description
+....detailed
+description....
+]
+
+     KEYWORD must be in caps.  Synonyms allowed, just enter ç
+multiple keyword lines (but still only one ending "]". This is ç
+best understood just by looking at the file HELP itself.
+     After asking for one keyword (or ? or ??) the user stays ç
+in HELP mode, and is asked for another keyword, or to press ç
+return to go back to the menu.
+
+****************	CBBSSUMM links to CBBSENT1
+     In non-expert mode, the summary header is printed every ç
+50 summaries actually printed, not just every 100 scanned.
+     s;-n or q;-n are now allowed, which mean to start the ç
+summary "n" back from the current high message.
+
+****************	CBBSENT1 links to CBBSENT2
+
+     This is the main message entry routine.  CBBSENT2 contains ç
+the edit, list, etc. routines.
+     The password protect has totally been rewritten for ç
+clarity.  Unfortunately, the "sense" of the first Y/N question ç
+is now different.  Wording is:
+
+	Protect: (Y/N) want to password protect this msg
+	to keep it from being killed?
+then
+	Password: Enter 4 char password 
+	(if you just press return, 
+	only the system operators can kill it)
+
+     Ctl-I (tab) now supported.  Translates to spaces to make ç
+editing and listing easier.  Translated back to tabs before ç
+being written to disk.  This means the user who just uses lots ç
+of spaces (i.e. 30 spaces then his name) will have their ç
+message truncated by changing to tabs as appropriate.  This ç
+function is transparent to the user, and they won't know ç
+anything was done.  Will look on retrieve just like it looked ç
+when they entered.
+     Control-K while used in message entry now returns to the ç
+ENTER function sub-menu, not to the main function menu.  This ç
+saves people accidentally dumping their almost-entered message, ç
+by using control-K while in the list subfuction of Enter.
+
+****************	CBBSENT2 links to CBBSENT2
+
+     This is the message entry sub-functions.
+     New subcommands:
+
+I	to insert a line (asks "before which line). Can't "I"
+	if already have 16 lines. Lines automatically 
+	renumbered.
+C	command automatically continues at proper place.
+D	to delete a line (asks which line).  Following lines
+	(if any) moved back.  Lines automatically renumbered.
+G	gets a previous message. This is super, for retrieving 
+	previous "for sale" messages, changing availability or
+	price, and writing it back. Users should be reminded to 
+	kill the previous message. You DO have to re-enter the 
+	"to" and "subject".
+
+     Mentioned above, but you can ctl-K out of the list sub ç
+function, and your message won't be thrown away.  Have to use ç
+the A command to throw it away.
+     If just a carriage return is entered as a command, then ç
+the detailed list of commands is printed. (even experts forget ç
+once in a while).
+
+****************	CBBSRTRV links to CBBSOPER
+
+      Nothing new here, except code was changed for no-pack ç
+method of calculating file name.  Specifically, an equate ç
+called FILEDIV (say 2) is divided into the message number (say ç
+12345) then re-multiplied by FILEDIV.  Since this is all ç
+integer arithmetic, the resulting number which is used as the ç
+message file to write to (MESSAGE.Xnn) will be one of ç
+"100/FILEDIV" message files.  For a 2 disk system, use 2. For a ç
+1 disk system, use 3 or 4, to have 34 or 25 message
+files.
+
+****************	CBBSOPER links to CBBSKILL
+
+     CBBSKILL got so involved, it was separated into its own ç
+file. 
+
+	<< SEE CBBSOPER.DOC FOR COMMAND INFO>>
+
+****************	CBBSKILL links to CBBSDISK
+     When you kill a message, it says "looking for it..." then,
+types an unformatted message summary:
+
+	 nn,mm/dd/yy,----from----,----to------ ----subject----
+
+and asks "Y/N OK to erase it?  (not done in operator mode)
+Then types:
+
+	Updating msg, summ, history file, and # of active msgs
+
+where pauses occur during the printing as the actual functionç
+is taking place.
+
+****************	CBBSDISK links to CBBSCLOK
+No external changes here.
+
+****************	CBBSCLOK links to CBBSSUB1
+     Added elapsed time to T function.
+
+Attempts to detect invalid time (hours > 30 or not numeric)
+
+****************	CBBSSUB1 links to CBBSSUB2
+
+     Ascii C, K, or S, when used while CBBS is sending ç
+something, may be used instead of ctl-C, ctl-K, or ctl-S.  Someç
+of the old TRS-80 terminal software forgot about the controlç
+key.
+     Ctl-W while keying in, reprints the last word in the ç
+current line.  This is to help 110 baud people who take too ç
+long to control-R.  For example, if you are correcting the ç
+spelling of a word - ^W retypes from the previous space in a ç
+line, to where you currently are.  <<Later ^W changed to wordç
+delete video - much more useful, I think>>
+     Ctl-L shows the current column location (useful, for ç
+example while entering a subject, which must be limited to 30 ç
+chars)
+     Too-long input is not just truncated, but user is asked ç
+"truncate or keep".
+
+
+****************	CBBSSUB2 links to CBBSSUB3
+
+
+     Keyboard input now says "please continue, name" if too ç
+much time has elapsed without input.  Dumps user shortly there≠
+	after.	Tabs are expanded in the type routine.
+
+****************	CBBSSUB3 links to CBBSPMMI,
+			or CBBSIDS, or CBBSHAYS
+			or CBBSMODM.
+
+     This file just contains the tab compression routine.
+
+
+****************	CBBSIDS/HAYS/PMMI/MODM
+
+
+      CBBSPMMI and CBBSMODM are new.  MODM is an attempt to ç
+make CBBS usable with an outboard modem.  It uses a serial ç
+port, and a control port which has 2 bits, ring detect, and ç
+carrier detect.  An output port is used to hang up the phone ç
+(is that how things work?)
+
+
+****************	CBBSWORK
+
+
+     Contains all the work areas. 1K of memory is used at the ç
+end of CBBS as a file write buffer for message kill.  The ç
+message killed is stored after that buffer, and when the new ç
+output file is finished, the killed message is logged.
+			---------------
+See file CBBS33.DOC for details on changes since this file.
+Also, HISTORY.033.

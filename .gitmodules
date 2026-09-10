@@ -1,0 +1,3 @@
+[submodule "machines/s100-cbbs/vendor/z80pack"]
+	path = machines/s100-cbbs/vendor/z80pack
+	url = https://github.com/udo-munk/z80pack

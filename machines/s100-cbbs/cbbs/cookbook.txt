@@ -1,0 +1,464 @@
+	 CBBS -	COOKBOOK Rev. 3.5 11/28/81
+
+
+This file is a COOKBOOK for the installation of a Computerized ç
+Bulletin Board System (CBBS).  Any comments, errors, omissions, ç
+etc should be referred to the Chicago CBBS, online at (312) ç
+545-8086, or to Ward Christensen at (312) 849-6279, or Randyç
+Suess, (312) 545-7535.  <<Note new CBBS # and new # for Randy>>
+
+Most of the comments are SUGGESTIONS.  For example, ideas areç
+presented for the format of the BULLETIN and WELCOME files. ç
+You are of course free to changes these any way you like.
+
+	HARDWARE:  THE FOLLOWING ENVIROMNENT IS REQUIRED:
+
+Mainframe: This used to say "S-100" but technically that is notç
+true; Randy and I are only familiar with S-100.  All theç
+programming is in 8080 assembler, so the CPU must be 8080 (orç
+'85) or Z80, etc.  Our original CBBS used a kludge chassis, butç
+we are now running a Vector 1 and IMSAI CPU.
+
+Memory: 32K.  28 will probably work.  If you have more avail-ç
+able, then you will be able to increase the size of the write ç
+buffer used in message and summary kill (now 2K).  Also, if ç
+your system has many (300 or so) messages and you want to run ç
+the BUILDSUM program to rebuild the summary file, 28K would be ç
+required.  In our 24K system, I ran BUILD with 330 messages, ç
+and only got 4/5 of the way thru the messages before running ç
+out of room.  (We are now a 40K system.) BUILD stores the ç
+summaries in memory, so it could not complete successfully.   ç
+Also, if you want to run CBBS under FAST (FX) which is a full ç
+track buffering program, then you will need about 40K.
+
+Modem: CBBS is written for a PMMI, or D. C. Hayes or I.D.S.  ç
+modem running thru a DAA.  An external modem can be accomo-ç
+dated, and some generalized code is provided which assumes the ç
+availability of a way to detect ring and carrier, and to go ç
+off-hook.
+
+Disks: Standard size floppy disk and controller capable of ç
+supporting CP/M. Our original system used the Tarbell control-ç
+ler, and an Innovex disk, very successfully).  The software ç
+supports one or two disks.  Smaller disks could be used, but ç
+the number of messages would have to be kept fairly low.
+
+Additional hardware: Local console and interface - This may ç
+consist of a terminal such as a Soroc or ADM-3, and serial ç
+port to access it, or a keyboard-VDM or other similar combina-ç
+tion.  (Note the CP/M BIOS does not have room for a scroll ç
+routine for a memory mapped display such as the VTI or VDM.  We ç
+use a scroll routine burned into a PROM, calling it from the ç
+BIOS).
+
+Software: The system requires the use of the CP/M operating ç
+system.  (or, technically, a "compatible" system).
+
+The system is running under both CP/M 1.3, 1.4, and 2.0. 
+I doubt there is any interest in 1.3 any more; The STAT commandç
+in CBBSOPER has been rewritten to support 1.4 and 2.2. Steveç
+Vinokuroff found that the "extend" routine which positions toç
+the last sector of a file, backs up 1, then scans for EOF, hadç
+to be changed to back up two sectors (testing for backing to aç
+"negative" number).
+
+Now, you must decide the mode of operation of the system:
+
+The preferred mode, and the only one I know people have tried,ç
+is to put the modem's I/O directly in CP/M's BIOS.  This isç
+preferred because it allows remote maintenance of the systemç
+via the XCPM command (eXit to CPM).  It requires that both theç
+modem, and the local console I/O be included in the 3 routines:ç
+console status, console in, and console out.  The originalç
+system made use of a sense switch (80H bit value on port 3) toç
+determine if the system was in remote (modem I/O) mode, and ifç
+not, dealt only with the local console.  Note that a systemç
+with no 
+front panelcan be accomodated as the original system did, byç
+putting a switch on an unused parallel port, such as on a 3P+S,ç
+as we did.  If this mode is chosen, do the following:
+
+Modify your BIOS console status, in, and out, to look like the ç
+ones in CEBIOS.ASM on the supplied disk. This BIOS has the ç
+following required features:
+
+1.   Console status, console in, and console out all deal withç
+the local console, and if the sense switch is on, with theç
+modem.
+
+2.   Console status is reflected as true if loss of carrier ç
+occurs.  This prevents hanging in the status routine, afterç
+loss of carrier.
+
+3.   Character in sends back an 0FFH if loss of carrier occurs.ç
+CBBS.ASM checks for this.  This implies you "ANI 7FH" for allç
+normal ASCII characters, to ensure an FF won't be seen exceptç
+due to carrier loss.
+
+		----------------
+
+If in addition, you want the system to automatically come up ç
+running the CBBS program from cold boot:
+
+4.   Cold boot checks the sense switch, and if in remote mode,ç
+does not go into CP/M command mode, but instead loads CBBS.COMç
+and transfers control to it.  Thus the user never sees or isç
+allowed access to the CP/M environment.
+
+Note that with CP/M 1.4 and higher, the auto-load feature ç
+whereby you patch the CBBS command into CCP's input buffer (at ç
+CCP+7: 7 is the length <e.g. 4 for "CBBS"> and 8-on is the ç
+upper case, actual command to be executed) is much "cleaner" ç
+than our original "load it yourself" trick. With 1.4 and auto-ç
+boot, when you JMP to CCP, the command is automatically exe-ç
+cuted.  In warm boot, JMP to CCP+3 which skips the auto-boot ç
+into CP/M.  This is so the "XCPM" command would allow you to ç
+get into CP/M in operator mode.  We supply a Tarbell singleç
+density BIOS for CP/M 1.4.
+
+An alternate mode of operation is to put the modem I/Oç
+directly  in the CBBS.ASM program.  I don't know of anyone whoç
+has done this.  If you do, the XCPM command should beç
+nullified.  If XCPM were to be used, the system would go intoç
+CP/M, but would then sit there communicating only with theç
+local console, and the phone would be off hook. Note thatç
+built-in I/O drivers are not in CBBS.ASM.  The suppliedç
+version is intended to work with modem I/O via CP/M BIOS asç
+described above.
+
+An "apparently" attractive alternative is to run CBBS underç
+Dave Jaffe's BYE program, a general-purpose program for remoteç
+access into a CP/M system.  It is distributed on CP/M Usersç
+Group volumes 40 and 46, and via various SIG/M disks, andç
+remote CP/M systems.  H O W E V E R, CBBS is written to have aç
+"DISK BUSY" flag, which is tested.  For example, if someoneç
+leaves comments, then hangs up without ending, the disk busyç
+flag causes a C/R to be written into the file.  With BYE, theç
+loss of carrier causes BYE to "yank" control away.  This couldç
+leave an un-terminated file open on disk, since message entry,ç
+log, kill, and comments, all "extend" disk files, i.e. overç
+write the previous EOF (^Z)) characters in the file.
+
+BYE MAY be used, but you may occasionally experienceç
+strangeness in your files.  I don't know a good solution,ç
+except having BYE handle the disk busy switch, returning 0FFHç
+upon carrier loss, like CBBS expects.  But then when BYE isç
+running something OTHER than CBBS, it should handle theç
+carrier loss itself.  An as yet unsolved problem.
+
+		------------------
+
+Obtain hard copy listings of all files, particularly theç
+CBBS.ASM source files: CBBSxxxx.ASM.
+
+Study these listings until you are familiar with the basic ç
+operation of the program.
+
+Select the options, such as if you have a log teletype, and ç
+make the appropriate source changes (TTY EQU TRUE or TTY EQUç
+FALSE).  Also change the equates for the TTY, which are now: ç
+status port 0, data port 1, ready bit 80H.  The routine which ç
+checks if the TTY is ready does a RZ if it is not ready.  If ç
+your TTY is LOW ready (ours was HI ready) then change this to ç
+RNZ.
+
+If you will be running a system which is able to cold boot ç
+itself, set REINIT to FALSE.  If you just want to type CBBSç
+and  then have it sit in memory, use REINIT EQU TRUE - whenç
+one  call completes, CBBS just monitors ring detect andç
+handles the  next call.  It reinitializes itself (clearsç
+operator mode, #  of nulls, etc)
+
+Make other appropriate source changes.  For example, at label ç
+TELLUS is a message which tells the user that a system error ç
+has occurred (such as if the file NEXT isn't found on disk, or ç
+if the disk is full).  This label has associated with it a ç
+message explaining who to call to notify that the system had a ç
+problem.  Change this as appropriate.  Note the availabilityç
+of  the FIND command to find any label in the many CBBS .ASMç
+files:  FIND CBBS*.ASM TELLUS for example.
+
+I eventually hope to pull ALL system-dependent pieces of CBBSç
+into a single module, so "technically" you would only have toç
+change a single .ASM file.  Sorry for not having done thatç
+yet.
+
+Make a running copy of CP/M for the system, having made the ç
+appropriate changes to the BIOS.  It should be at least a 28K ç
+system. (Note this is actually 27K in a Tarbell controlled ç
+system).  You might want to try running CBBS under anotherç
+CP/M  system, i.e. without the modem I/O.  CBBSTEST.COM on theç
+distributed diskettes is just for this purpose.  It has theç
+SSW input NOPed, as well as modem I/O, etc.
+
+Assemble CBBS and place the COM files on the disk which will ç
+run in the CBBS system itself.
+
+Pip over the files required by CBBS:
+
+		  Location in a
+	 NAME	  2 drive system:
+
+	BULLETIN	B:
+	WELCOME		B:
+ 	NEXT		A:
+	FIRSTIME	B:
+	ENTINTRO	B:
+	ENTRHELP	B:
+	FUNCTION	A:
+	HELP		B:
+	HELP2		B:
+	HELP.IDX	B:
+	PASSWORD	B:
+	SCANHELP	B:
+
+Initialize your PASSWORD file to contain the operator access ç
+password: any word or phrase terminated by C/R.  CBBSPASS isç
+used in the test system supplied.
+
+Initialize file NEXT to contain:
+
+00020(cr)(lf)   <-- next message number (MUST have leading 0s)
+    1(cr)(lf)   <-- next caller number
+   10(cr)(lf)   <-- number of active messages
+  300(cr)(lf)   <-- Maximum number of active msgs
+(ctl-z)
+
+00020 is the starting message number;  This is assuming that ç
+you will leave the first 20 message numbers open for permanent ç
+CBBS operational messages.  See the sample CBBS supplied for ç
+the contents of these messages.  You might even wish to just ç
+edit these messages, deleting the other test messages, and doç
+a  BUILD to get the summary, and use this for the start ofç
+your  system.
+
+The second line is the next caller number, treated as a lead-ç
+ing zero suppressed ASCII 5 digit number, which is incremented ç
+and printed each time someone calls the system. It is also ç
+written to the LOG before the person's name.
+
+The third line is the number of active messages.  This may beç
+manually initialized if you have a small number of messages,ç
+or  you may execute "T SUMMARY #" which prints the number ofç
+lines  in the summay file, then divide that number printed byç
+2, to  get the number of active msgs.  The summary may,ç
+however, have flag-deleted messages, so this number won't beç
+absolutely correct.  The best way is to run BUILDSUM whichç
+will not only build a new summary file, but tell you exactlyç
+how many messages there are.
+
+Back to file NEXT: The fourth line is a maximum number ofç
+active messages. This prevents the disk over-filling so thatç
+kill wouldn't work.  NOTE this is compared character byç
+character with the line above it, so both must be leading zeroç
+suppressed numbers.
+
+Edit the file WELCOME to put in your own welcome message.  ç
+Leave the comments about the control characters.  Please leave ç
+the (R) next to "CBBS(R)" and "Computerized Bulletin Board ç
+System"(R) as we have trademarked the terms.
+
+Edit the BULLETIN file.  Keep the top line up to date as toç
+how  many lines it contains, and when it was last updated. ç
+You'll  have to decide yourself how big you want to let itç
+grow, and  what it will contain.  Rather than having a super≠
+big bulletin,  its better to refer people to specific messagesç
+by number, in  the bulletin.
+
+Note: With CBBS 3.5, there is now a NEWS file, which may beç
+considered to be an extension of the BULLETIN file.  You mayç
+wish to make reference to it in the BULLETIN, e.g. for moreç
+news about the system, type: NEWS
+
+Edit the file FIRSTIME to make it appropriate to your environ-ç
+ment.  Feel free to add any questions which you might like to.  ç
+A question starts on a line by itself, starting with the char-ç
+acter [.  The question may not be more than 1 line long, andç
+is  terminated by cr/lf, without any '?'. The information toç
+be  typed in response to a Y answer to the question is entered ç
+directly following the question line.  When you have completed ç
+the answer, type a ] character which signals the end of the ç
+question.  This is so if the caller replies N to the question, ç
+the CBBS software will skip past the ] character.  Typing the ç
+reply ends with the ']' character, so it should be on a lineç
+by  itself, not on the end of the previous line.
+
+You will want to edit the first 20 messages, to put in infor-ç
+mation about your system.  For example message 1 contains the ç
+system history.  Other than acknowledging "Ward and Randy" asç
+the original source, make it whatever you feel is appropriate. ç
+Also, update the line count in the header.  Then remember toç
+run BUILDSUM after changing these messages, so the SUMMARYç
+matches your messages.
+
+Now try the system from the local console or modem, which ever ç
+you feel more comfortable with.  Try all commands, and all ç
+options (first time user, help file, full/half duplex, bulle-ç
+tin, welcome, etc.) to make sure all the functions work andç
+all  the files are present.  Even though you may be familiarç
+with CBBS operation, it is probably best to STAY OUT OF EXPERTç
+MODE TO be sure all the prompts are OK.
+
+Now try entering a message.  Use all of the enter functions, ç
+such as retyping a line, editing a line, insert, delete, etc. ç
+Abort out and make sure that works.  Then leave a legitimate ç
+message.
+
+Your system should now be ready to go 'on the air'.
+
+
+		DAY TO DAY OPERATIONS
+
+If there are multiple operators on the system, they will prob-ç
+ably want to leave messages for each other, which they would ç
+like to be more "private" than just leaving a regular message ç
+permits.  The most obvious way is to leave a comment, since ç
+only the operators can view them via the TYPE LOG command of ç
+operator mode.  This is inconvenient, however, as it becomes ç
+hard to find the other operator's comments among the user's ç
+comments. For this reason, a special function "NOTE" is imple-ç
+mented when in operator mode.  Typing NOTE results in being ç
+able to key lines into a file NOTES.  It works just like the ç
+comments function, i.e. enter a null line (two returns in a ç
+row) to terminate input. 'FROM firstname:' is placed at the ç
+front of the notes.  Repeated use of NOTE results inç
+additional  notes appended to the original.  Each is date/timeç
+stamped.  To avoid time/date stamping, use NOTEN.  When usingç
+NOTE, the other operator then only has to issue the commandç
+TYPE NOTES (or TYPE B:NOTES, etc) to see the notes, and theç
+command ERA NOTES (or ERA B:NOTES, etc) when they have beenç
+seen.  When an operator uses the PASS command to get intoç
+operator mode, the the NOTES file is automatically typed ifç
+there is one on disk.  Control-C will skip a single note,ç
+Control-K will skip them all.  The NOTE function is evenç
+useful when there is only one operator - to leave notes toç
+yourself!
+
+The operators will want to frequently see the LOG files.  Get ç
+into operator mode (via PASS command, and the correctç
+password).  Use the TYPE command to TYPE LOG. If the LOG fileç
+is  large, control-x may be used to skip blocks of 10 lines,ç
+or  Control-C to skip to the next comment.  Each comment,ç
+unsuccessful message kill, password violation, or request forç
+a keyword not in the HELP file, has a "]" character before it. ç
+This is the character which control-c skips to.  The name ofç
+the person leaving the comment is logged again at the end ofç
+the comment.  CBBS didn't used to do this, so you didn't knowç
+who the comment was from.  If you have a clock, and want toç
+see comments after a certain date, use "type b:log,mm/dd"ç
+since any string following TYPE will be skipped to.  ^C skipsç
+to the next occurrence.  I use "TYPE c:log,ward christensen"ç
+for example, so that I can skip to right AFTER MY OWN lastç
+LOGIN.  I let 2 lines print, to see what date, and if I seeç
+its not the most recent previous login, press  again to skipç
+to the next one.
+
+When the LOG file nears 1 extent (DIR B:LOG shows over 100 or ç
+so sectors) we suggest renaming the LOG file.  We use Lyymmddç
+as the new name.  This is to minimize the time it takes to ç
+access the file online.  (Note that in CBBS 3.4 or so, a moreç
+efficient algorithm was introduced, so large files are not asç
+bad as they used to be.  EXTEND looks for the highest extent,ç
+rather than scanning thru each extent after the first.  Also,ç
+this will be an operator convenience in typing the LOG file asç
+it won't be as long.  A new LOG or KILLED file isç
+automatically created if none is found.
+
+Note the TYPE command allows a character string search.  Iç
+have  a notebook in which I type the current caller numberç
+every time  I call in.  Then, the next time I call in, I canç
+just TYPE  B:LOG,nnnnn where nnnnnn is the caller number theç
+last time I  called in.  See more comments on limitations ofç
+TYPE in  CBBSOPER.DOC.
+
+Periodcally pull the LOG files and the KILLED files off to ç
+another disk, as the online disk gets full. 
+
+If it becomes necessary to edit a message file, such that the ç
+message header would change, be sure to edit the SUMMARY file ç
+to reflect the changes.   An alternative would be to runç
+BUILDSUM to rebuild the summary, but make sure you have enoughç
+memory to do this.  (The summaries are read into memory byç
+scanning all message files) (An alternative is to take theç
+message disk to a larger CP/M system and do the BUILD there).
+
+On CBBS/Chicago, we used the first 20 messages for system use.  ç
+This was not done initially, but later the editor was used. ç
+We  suggest you keep this policy. If you have a need such asç
+this,  or want to create a message without CBBS (i.e. anyç
+message not  at the end) you should know the following aboutç
+the format of  each message header:
+
+			MESSAGE	HEADER
+
+	A bell chaaracter (07H).
+
+	Then the 5 digit message number
+		a comma
+	the date (m or mm, '/', d or dd, '/', yy)
+		a comma
+	who the message is from (SYSTEM OPERATORS, etc)
+		a comma
+	Who the message is to
+		new line (i.e. crlf)
+	subject
+		comma
+	password (the word NONE if you don't want it killable)
+
+Together these would look like this: (where ^G is a control-G) ç
+NOTE the header MUST be in UPPER CASE so that the S and Q ç
+string search commands work. (S;1,t=ward looks for WARD inç
+upper case only)
+
+     ^G00003,05/08/78,SYSTEM OPERATORS,ALL
+     SAMPLE MESSAGE,NONE
+
+
+When the disk or directory becomes fairly full, you will haveç
+to kill off messages.  We keep messages for 2 months on ç
+CBBS/Chicago.  More lately, we have decided to keep 320 active ç
+messages.  This means keeping them about 50 days. Use your own ç
+judgement.  
+
+			N-O-T-E
+
+The message kill function works like an editor:  a file isç
+created, and the message file is passed thru memory, to theç
+temporary file, with the requested message deleted.  This ç
+means you must have enough room on disk for this temporary ç
+file, i.e. enough room for a second summary file (since the ç
+summary will typically be bigger than the largest message ç
+file, once you get a few messages).  REV: CBBS 3.4 no longer ç
+passes the summary file thru memory on every Kill.  The PURGE ç
+command must be used to physically delete flagged summary ç
+messages, or alternatively, run BUILDSUM to "blow away" theç
+summary file and rebuild it (IF you have enough memory to holdç
+the entire summary along with CP/M and BUILDSUM.COM).
+
+NOTE that this version of CBBS no longer packs messages. Mes-ç
+sage numbers will never be reused, except the low numbered ç
+messages which are "reused" by editing them.  Whenç
+CBBS/Chicago reached 10,000 messages, a few people asked thatç
+we start over at 100 or so, but we "like" seeing the 10000+,ç
+numbers, and with "+" and "-" retrieval, and flaggedç
+retrieval, they are not "that" inconvenient.
+
+Well, that's it!! Hope this helps get you on the air, and have ç
+fun!!  Don't forget to back up the disk periodically "just in ç
+case".  We do it once a week + whenever software changes are ç
+implemented.
+
+As stated in the Terms and Conditions, you're on your own, but ç
+we wouldn't refuse an occasional chat (question, etc) to:
+
+	Ward Christensen (312) 849-6279
+
+	Randy Suess (312) 545-7535
+
+NOTE that CBBS is licensed to you.  I was recentlyç
+disappointed  to hear the entire CBBS source files are in aç
+local "scroung- er's" "hot" program library.  
+
+..and did we remember to say "THANKS" for supporting CBBS???
+
+				Ward C. 11/25/81

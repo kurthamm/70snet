@@ -1,0 +1,318 @@
+		 CBBSOPER.DOC	as of 11/28/81
+
+
+     There are additional commands made available to CBBS ç
+operators, which are not available to normal CBBS users.  They ç
+are allowed only if a correct password has been entered.
+     To enter the password, type the command PASS. You will beç
+prompted just with a cr/lf.  Enter the password, which will notç
+be echoed.  If it is correct, you will be prompted just withç
+the function menu, or, if there is an operator file "NOTES", itç
+will automatically be typed.  If an incorrect password isç
+entered, then the "I don't know what you mean by "pass", so≠
+and-so" will be typed, and the line:
+	 "]PASSWORD name"
+ will be put in the LOG file, as a "log" of an "attemptedç
+security violation".
+     If you are in operator mode and want to disallow operatorç
+commands, (such as when turning the system back to anotherç
+user) just type in PASS, and press return as the password, Thisç
+will be invalid, and will turn off the "operator mode"  bit,ç
+(and log a PASSWORD violation).
+     When in operator mode, the retrieve function allows usingç
+a "+" sign to indicate "next 10 messages".  I.E. you canç
+r;100;+;+ ...the reason for this is that the operators probç
+ably want to "scan" all entered messages for appropriateness. ç
+This function was originally allowed for everyone, but intendç
+ed for operator use only.  Later it became common knowledge,ç
+and was made restricted to operators only.  In CBBS/Chicago, weç
+recently re-allowed everyone to access it.  We had thought itç
+would tie up the system excessively, but "maybe I'm mellowingç
+in my old age".  If Y-O-U want to make "+" "public", changeç
+the test for operator mode in the CBBSRTRV.ASM module, justç
+before label "RTVST".  It tests for a "+", and if so, testsç
+for operator mode, and if so, stores 10 into "RTOGO" (how manyç
+to go in this retrieve).  Just throw away the 3 instructionsç
+(LDA, ORA, JNZ) which relate to the operator mode test.
+
+
+
+
+		    CBBS OPERATOR COMMAND
+		       Quick reference
+			   10/17/81
+
+CONT	Enter another message, to same person as last msg.
+	(Subject of (CONT'D) is automatically entered)
+DIR	[dsk:][filename.type]
+DIRN	as above, but prints only # of files
+DUMP	addr		press ^C to stop
+ENTR	addr.data	one byte of hex data to memory
+ERA	[dsk:]filename.typ
+HOLD		keep phone line from timing out.
+NAME		Re-enter name
+NOTE		Append data to the NOTES file.
+PRINT		Turn on/off a BIOS-list device print switch
+PURGE		Purge flagged killed summaries
+PURGEN		Purge with no details shown
+SLOW		Slow down output for testing.  Repeat if
+			desired.  4 times goes back to fast.
+STAT		Free space on all logged in disks
+TYPE	[dsk:]filename.type	types the file.
+		^C skips to next "]" or bell
+		^K aborts
+		^X skips 10 lines
+TYPEH	see type	Types only lines starting "]"
+TYPEK	see above	Types lines starting "]" and next line
+XCPM		Exit to CP/M
+
+
+
+
+
+		CBBS OPERATOR COMMAND HANDBOOK
+		       Revised 07/12/81
+
+		       Command Details
+
+
+     Here are the commands which are made available in operat ç
+or mode.  "[" and "]" are used to delimit optional data, i.e.ç
+[disk:]fn.ft means MESSAGE.X24 OR B:LOG for example.
+
+
+CONT
+====
+
+     When you have entered a message, and 16 lines aren'tç
+enough, simply save the message, then use the CONT command toç
+put in the next message.  It enters the same date, who to, andç
+for the subject, inserts "(CONT'D)".
+     CAUTION: No test is made to see if a valid "WHO TO" had ç
+previously been entered.
+
+DIR [[disk:]fn[.ft]]
+===
+Ex: DIR B:*.*
+
+Ex: DIR B:LOG
+
+     This produces an across-the-screen directory listing.  Theç
+extent, and decimal number of 128-byte sectors is shown.   Theç
+count of files matching the criteria is shown.
+     NOTE if you just want to type DIR, you'll have to type
+'DIR ' since the command lookup is for 4 characters.  Normally ç
+you would supply a disk, anyway, i.e. 'DIR B:'.
+     As of 7/81, DIR B: defaults to DIR B:*.*.
+
+
+DIRN [[dsk:]filename[.type]]]
+====
+Ex: DIRN B:
+
+     This is just like DIR except that no details are shown,ç
+only a count of the number of files.  Used to see how full theç
+directory is.
+
+
+DUMP startaddr
+====
+Ex: DUMP FE0
+
+     This does an interpreted (i.e. hex + Ascii) dump, whichç
+"runs forever".  Press K to kill it.
+     In CBBS/Chicago, we have our logging TTY equate TRUE in ç
+the software, but have not printer hooked up. Thus there is theç
+256 byte wrap-around buffer sitting in memory, showing the lastç
+256 bytes keyed by users. So, when I log on, and go intoç
+operator mode (i.e. I have keyed perhaps 40 characters) I dumpç
+the log buffer, to see what the last caller was typing.  It isç
+sometimes useful to detect someone having trouble, and leavingç
+a msg which might help.
+
+ENTR addr.data
+====
+Ex: ENTR 1234.F1
+
+     Yes, this is one-lousy-byte-at-a-time, but something isç
+better than nothing.  I used the "filename formatting" to makeç
+it simple to find the byte.  Yes, this could be improved, butç
+typically it is for patching one of CBBS switches whileç
+testing, or some such.  No, you couldn't patch an instruction ç
+which is being executed as you might get 1 byte of addressç
+patched, hit the instruction, go off to never-never-land,ç
+before getting the second byte patched.
+
+
+
+ERA [disk:]fn[.ft]
+===
+Ex: ERA B:BULLETIN.BAK
+
+     We mostly use this command to ERA B:NOTES, i.e. the fileç
+containing notes from one operator to another (or toç
+themselves).  Otherwise, it is mostly used when a disk is foundç
+to be unusually full, because you forgot to ERA a .BAK fileç
+after an edit.  Wild cards are allowed ("?" and "*"), but notç
+in the first position of the filename.  Thus ERA *.* is notç
+permitted, but ERA M*.* is.
+
+
+HOLD
+====
+     When testing or working with CBBS, the "auto hang up onç
+someone who walked away" may be annoying.  Typing HOLD willç
+disable this function.  Typing it again will re-enable theç
+timeout.
+
+
+NAME
+====
+     This is simply a command which JMPs to the beginning ofç
+the dialog "What is your first name", so it allows an operatorç
+to re-log on as someone else.  Typical use is to re-enter aç
+message so it will be "from" someone else, (i.e. using theç
+(G)et msg subcommand of message entry, editing it, saving it asç
+a new msg).
+     Another use is when you have company, and are showing ç
+CBBS off, and logged on as yourself, then want a guest to go inç
+under their own name.  Note: ",R" is logged after the name, toç
+show this is a re-log on.
+     You can combine the names on a line:
+
+	name;ward;christensen
+
+     Caution - I sometimes forget the ";" between first andç
+last name.
+
+NOTE
+====
+     This function allows an operator to key into a file calledç
+NOTES, which is then automatically typed when someone entersç
+operator mode.  Use ERA NOTES (or ERA B:NOTES) to delete it. ç
+Use TYPE NOTES (or TYPE B:NOTES) to see it again.   If you haveç
+seen the notes, typing control-K (or just ASCII K) will abortç
+it and go on.
+
+NOTEN
+=====
+     Just like NOTE, but doesn't append a date/time line.  Useç
+it to add notes when you don't want to waste the space.
+
+PRINT
+=====
+     For local testing, typing PRINT causes all CBBS output toç
+be directed to your CP/M BIOS list device.  A second PRINTç
+command will turn this off.  Think of it as if it were ^P inç
+CP/M command mode.
+
+
+PURGE
+=====
+     This command makes a single pass thru the summary fileç
+physically deleting all Kill-flagged messages. A Kill-flaggedç
+message has an "X" stored as the first byte of the # of lines.
+     PURGE works by creating a file WORKFILE, then passing the ç
+summary file thru memory one at a time, deleting the "X"edç
+ones, and writing good ones to WORKFILE.  When done, SUMMARY isç
+erased, and WORKFILE is renamed to SUMMARY.
+     N-O-T-E that you must have enough space on the disk for ç
+the workfile.  If you have a standard CP/M for which our STATç
+command works, (or have modified it), use STAT to determine theç
+space left, and DIR SU* to see the size of the summary file.ç
+Take the number of records in the summary file, times 128, andç
+that is the size.
+
+
+PURGEN
+======
+     Like PURGE, but doesn't show what was purged.  Faster whenç
+running remotely.
+
+
+SLOW
+====
+     Doing CBBS development, then testing it locally, does notç
+adequately simulate how it would "look" to a remote user,ç
+because things "scroll by" so fast.  SLOW puts a time delay inç
+the console output routine.  Typing it a 2nd or 3rd time, slowsç
+it down even more.  Typing SLOW a 4th time, restores the systemç
+to no-slowdown.
+
+STAT
+====
+Ex: STAT
+
+     In 7/81 this was completely rewritten to dynamicallyç
+determine which disks are logged in, and determine the spaceç
+left on each logged in disk.  (Finally!)
+
+
+TYPE [disk:]filename[.type][,search string]
+====
+Ex: type b:log
+
+Ex: type b:log,12345
+
+     Type any ASCII file.  ^X skips 10 lines, ^C skips to theç
+next "delimiter", i.e. a bell, or a "]".  ^K aborts the type. ç
+^S suspends it.
+     The search string allows typing the log (or other files) ç
+starting at a particular character string.  I use this to typeç
+the log starting at the user number one higher than the numberç
+I got the last time I called into CBBS.
+     Note that this string search does a RDBYTE from the disk,ç
+and compare, so does not "back up" properly when it finds dataç
+which partially duplicates the start of the string. Thus "TYPEç
+B:LOG,0999" wouldn't always match "00999" in the LOG becauseç
+the 0 would be compared to the zero, and match, then the 9ç
+would mismatch the next 0 read from the file. The next compareç
+would be the leading zero of the search string, to the nextç
+character read from the file (9), so it wouldn't match.  (Sorç
+ry, but something is better than nothing, and this explainsç
+away the seldom-occurring "why didn't it find it" problem.)
+
+
+
+TYPEH     (see TYPE for operands)
+=====
+     This is an outgrowth of the NEWS function for printingç
+only headlines.  TYPEH types a file, but only lines with a "]"ç
+in them, and then only from the character after the "]" on.
+
+
+TYPEK     (see TYPE for operands)
+=====
+     TYPEK was invented to check the KILLED file to see thatç
+the person killing a message was the "right" person.  If you,ç
+for example: "TYPEK B:KILLED", you will see 2 lines printed forç
+each message, the first being the "killer", and the second,ç
+the FROM/TO line of the message header.  A blank line is thenç
+printed.
+
+
+XCPM
+====
+     This is simply a JMP 0.  It assumes that you have modemç
+I/O in your BIOS, and that you will be able to continue operç
+ation remotely, in CP/M itself.
+     Note that if you are autoloading CBBS on a cold boot ç
+(i.e. running 1.4 and have patched "CBBS" into the commandç
+buffer at CCP + 8 (displacement 8 at track 0 sector 2) and 04Hç
+at CCP+7 (the command length) then you must ensure that yourç
+WARM start routine JMPS to CCP+3, which is the entry point toç
+CCP to NOT autoload CBBS (or whatever is in the commandç
+buffer)
+     If you do not wish to re-enter CBBS to hang up, you willç
+have to put together a little .COM file which just outputs theç
+appropriate bits for your system. For CBBS/Chicago, it outputsç
+to the port to turn off the diskette spin motors, and outputsç
+to the PMMI to go back on hook.  We call it PMMIBYE.COM.
+
+		       ----------------
+
+     Any other command you feel would be of value?  Someday Iç
+may tackle REName, because we REN Lyymmdd=LOG whenever the logç
+gets near 128 sectors (1 extent).  Let me know if you have anyç
+ideas.
+			      11/28/81 Ward Christensen

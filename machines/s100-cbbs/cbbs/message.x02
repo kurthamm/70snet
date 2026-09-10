@@ -1,0 +1,63 @@
+00002,09,02/07/78,WARD AND RANDY,ALL
+TIME SAVING TIP,NONE
+You can now use the semicolon character ";" to separate answers
+to questions from CBBS in advance of their being asked.  This
+saves connect time for the more experienced user.  For example,
+to retrieve a summary starting at 500, you give the S command,
+then press return, then type in 500.  Well, you know it's going
+to ask for the message number, so just type: S;500. Likewise,
+when you log on, CBBS asks (1) first time user? (2) first name
+(3) last name, etc.  So, reply: n;larry;holmes; and so on.
+	An experienced user might sign on as:
+
++ No, not first time on system
+| + first name
+| |	+ last name
+| |	|        + eXpert user mode command
+| |	|	 | + Summary command, starting...
+| |	|	 | | + 30 back from current highest msg
+| |	|	 | | |
+n;roger;albrecht;x;s;-30	<-- experienced user signon
+
+More timesaving tips in message 3.
+00003,39,12/03/81,WARD & RANDY,ALL
+CBBS USAGE TIPS,NONE
+Some people want personal messages, for sale, and messages to 
+"ALL", split out.  Others want less active messages.  Both of
+these relate to taking less time on CBBS, and we appreciate the
+concerns.  Here's some ways to make CBBS "look", which in a
+way, answers these needs.  The Summary and Quick summary
+command are the means.
+
+To see just "for sale" messages, do:
+	s;1,s=sale	or	s;1,sale
+which means summary from 1, subject = sale
+
+Check for personal messages to and from you:  I find using
+the first 4 letters of your last name to be usually sufficient:
+	s;1,t=yourname	<-- messages to you
+	s;1,f=yourname	<-- messages from you
+Better yet, just do:
+	s;1,yourname	<-- messages to, from, about you.
+
+Any full file scan takes about 25 seconds - that's not too
+bad considering you're paging thru a 16 to 20 K file containing
+about 600-650 lines of information.  
+
+To just see "public" messages, do:
+	S;1,t=all
+
+If you're calling long distance, we suggest doing:
+	q;-50
+which will be a quickie (msg #, subject) list starting 50 back
+from the current high message number.  Then Flag-retrieve those
+of interest, by typing "F" during the NEXT summary.  This might
+to by too fast, so you can press "M" (or C/R) to be asked for
+any #'s that you missed.
+
+If you left messages, check for ones to you.  Periodically
+check for old messages F-R-O-M yourself, which may be outdated
+and needing deletion.
+
+Pass along any other ideas you might have - we would like to
+consider them for future implementation.

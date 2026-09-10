@@ -1,0 +1,327 @@
+		FILES ON THE CBBS NON-ASM DISK
+
+Updates:
+01/03/82	Add LOAD.SUB
+12/03/81	Add NEWS, FUNCTION, CRCK stuff.
+		Make BIOS just console routines (disk full!)
+11/25/81	Put NEWBIOS.ASM here - won't fit on .ASM disk
+11/21/81	to delete "FAST" as it doesn't work with CP/M
+		2.2, and because not enough room on disk.
+12/17/80	to add BUILDSUM, the new version.
+06/22/80	Originally written
+
+
+	Files followed by "<===<<<" should be edited
+	before your CBBS goes on the air.
+
+		-CBBSMIS.3-5
+I use this in my catalog program as the name of this disk.
+
+		BIOSCON.ASM <===<<<
+This is an example of modem and local console I/O that you
+could patch into your BIOS for CBBS.  Of interest are the
+techniques used in console status, console in, and console out,
+which relate to having a remote console (the CBBS caller): the
+testing of a sense switch for local or remote operation, and
+the returning from BOTH console status and console in, of an
+"0FFH" upon carrier loss (required by CBBS.ASM). 
+
+		BUILDSUM.ASM
+
+This program builds or re-builds the summary file from the
+message files.  Suppose your message files are on A:, and
+BUILDSUM.COM is on B:.  Just type:
+	B:BUILDSUM
+Optionally, the message disk and summary disk may be specified
+by substituting them for M: and B: in this:
+	BUILDSUM M: B:
+
+		BULLETIN. <===<<<
+The file of bulletins which are printed after the WELCOME at
+CBBS sign-on time.  Also printed by B command.
+
+Be sure to edit it and change it to be appropriate to your
+system.
+
+		CBBS3.DOC
+Miscellaneous documentation on what's new in cbbs for version
+3.2
+
+		CBBS33.DOC
+Changes from 3.2 to 3.3
+
+		CBBS34.DOC
+Changes from 3.3 to 3.4
+
+		CBBSLINK.DOC
+How to assemble the CBBS programs using LINKASM.
+
+		CBBSOPER.DOC
+Documentation on the operator functions available in CBBS, and
+general hints on system maintenance.
+
+		CBBSTEST.COM
+A sample 3.4 CBBS system, which you may test just by typing:
+CBBS.  It is set to run with all files on the logged in disk,
+so be sure to be on that disk before typing CBBS.  I set the
+"TEST" equate to false, which ignores sense switches, and
+doesn't call the "connect" subroutine.  However, the timeout
+for no input activity is still there, and jumps to E000 (the
+address of our PROM monitor), so don't let it go too long. 
+Pressing any key every few minutes will defeat the timeout. 
+(I'll try to remember to NOP the timeout when TEST is TRUE, in
+the future).
+
+You can diddle with this program, scan summaries, go into
+password mode (password = CBBSPASS) (SEE CBBSOPER.DOC).
+
+		CONVERT.ASC
+
+This program is used to convert message files from the old
+format to the new.  Sorry, there is no .ASM program to do the
+conversion, but then it is a 1-time thing anyway.  ONLY
+suitable if you are going to 50 message files under the new
+system.  Would have to be rewritten to go to some other number. 
+((Is there a request for a conversion program for other
+numbers?)) ((or mebbe you could just sit down for about a day
+with a good editor such as wordmaster, and hand-construct the
+message files <<ug!>>))
+
+		CRCK.COM, CRCKLIST
+Keith Petersen's public domain program for computing the CRC
+(cyclical redundancy check) of a file.  CRCK is self
+documenting, just type CRCK.  CRCKLIST is a file of the CRCs of
+all files on the disk, that you might verify any possible
+copying glitches.
+
+		D.COM
+Just type D to see the difference in what's on this disk from
+what we sent you.  D.COM contains a list of files, as
+distributed.  I "set" the names into D.COM via the command: D
+SET
+You may selectively add, or delete names which D.COM keeps in
+itself, by typing:
+	D ADD fn.ft	adds fn.ft, so it won't show up.
+or	D DEL fn.ft	shows fn.ft is truly gone from the disk
+
+It may also be used as a regular directory listing
+program, by typing: D *.*
+
+If you wish to use D.COM on other disks, just pip
+it over, then to D SET to initialize it.
+
+		ENTINTRO.
+When entering a message, you are asked "Y/N want
+help..." - this is the file which has the help.
+
+		ENTRHELP.
+If the H subcommand of message entry is used, this
+is the more detailed help file which is used.
+
+		FILES.DOC
+The file which contains this documentation you are
+now reading.
+
+		FIRSTIME. <===<<<
+When asked "Y/N is this your first time on the system" this is
+the file which is interpreted with a few hints.  Edit it for
+your environment.  Sorry, but the hardware definition in this
+file is somewhat duplicated by the HARDWARE keyword in file
+"HELP".  Remember to change them both, or even delete hardware
+from "Firstime".
+
+		FUNCTION
+This file contains the menu printed by the "?" command; it was
+formerly hard-coded into CBBS.
+
+		HELP. <===<<<
+The file which contains the keywords and help info, accessed by
+the H function.  It is mostly universal, but edit it and change
+any references which were to the original CBBS.  I believe
+there are a couple near the end, i.e. keyword WHY.
+
+After changing HELP, be sure to run XHELP to rebuild HELP.IDX.
+
+		HELP.IDX <===<<<
+This file, built by XHELP.COM, is an index into the HELP
+keyword file.  It allows the CBBS "H" (keyword help) command to
+run faster.  If HELP.IDX is not on the disk, CBBS does a
+sequential scan of HELP for the keywords.
+
+		HELP2. <===<<<
+Gives help on the system, as asked for in the HELP command. 
+Each question starts with an "[" and ends with a "]".
+
+		KILLED.
+The file of killed messages.  The name of the person who killed
+it is logged, followed by the message, which has it's ctl-G
+(Bell) stripped off.  If you want to put a message  back into
+the proper message file (it was erroneously or mischeviously
+killed) do so, by adding the bell char.  Then either BUILD to
+get it in the summary file, or manually edit it into the
+summary.
+
+I suggest renaming this file whenever it gets near to being 1
+extent long, as time to find the end of file when writing more
+to it increases if the file is > 1 extent.
+	ex: REN K112779=KILLED
+Operationally, you will want to PIP the LOG and KILLED files
+(and their re-named versions) to another disk periodically.
+
+		LOAD.SUB
+A submit file, for use with CP/M 2.2 (requires XSUB).  It turns
+a "live" version of CBBS into a "test" version, by making all files
+be on the logged in disk, etc.  "submit load a b" where "a" is the
+disk that the file to modify is on (e.g. B:) and "b" is either "HEX"
+or "COM" depending upon what you want to load.  The .SYM file must
+be on the same disk.  You have to save the resultant changed file
+yourself.
+
+		LOG.
+Logs who called in.  Has the caller number, date
+and time (if you have a clock).  Also contains:
+]K,nnnnn	for any unsuccessful message kill attempts, and
+PASSWORD	for any unsuccessful attempts to enter 
+		the system password.
+
+		MESSAGE.X00 <===<<< change msg 1
+		MESSAGE.X02 <===<<< change msg 2
+		MESSAGE.X10 <===<<< change msg 10,11
+		MESSAGE.X12 <===<<< change msg 12,13
+		MESSAGE.X14 <===<<< change msg 14,15
+
+		Other MESSAGE.Xnn files may exist.
+
+These were pulled from CBBS/Chicago in late November, 1981.  Of
+significance are the messages from 1-20, which are permanent
+messages.  You might wish to edit them as a nucleus of system
+messages for your CBBS.  Be sure to update headers, and BUILD a
+new summary file.  If you don't mind, leave messages 9-11 on as
+an "ad" for future CBBS operators (feel free to delete or
+change any of these things - CBBS is yours to tailor to your
+needs and wishes).
+
+
+		NEWS <===<<<
+This file is typed by the "news" command.  It contains, for
+example, information on "what's new".  I invented "news" as a
+means to keep people up-to-date on new features of CBBS 3.5. 
+You may wish to completely change it, or at least edit it.
+
+Note the format, with "headlines" being one line long, in
+capital letters, on a line preceded by the letter "[", which is
+the "skip-to" character used by the NEWS command, headline
+feature, and by ^C which skips to the next headline.
+
+		NEXT.
+Contains the next message number, caller number,
+and number of active messages, and names of people who
+you want to send short messages to.  The supplied NEXT file:
+
+04031		<- 5 byte next msg # (5 digits, then cr/lf)
+    6		<- caller number (lets you start out with 1)
+   81		<- number of active messages
+  100		<- maximum number of active messages allowed.
+[ALFRED,NEUMAN,
+]/[AARDV*,COMP*,HOPE YOU'LL SAY CBBS SAN DIEGO IS UP!!
+][DAVE,CAULKINS,HOW'S PCNET GOING?
+]
+
+N-O-T-E the first 4 lines must appear exactly as they do.  They
+may be thought of as 4, 5 byte lines, or as a "linear"
+arrangement containing:
+<5 byte next message with leading ZEROS><cr/lf>
+<5 byte next caller # (leading spaces)><cr/lf>
+<5 byte number of active msgs (leading spaces)><cr,lf>
+<5 byte Max. number of active msgs (leading spaces)><cr,lf>
+
+A name which you want to look up at logon time, is show,
+following a "[".  The first name and last name are followed by
+a comma.  An asterisk is allowed to match any characters.  Thus
+"[WILL*,SMI*,  will match WILL SMITH, WILLIAM SMIDLEY, etc. 
+
+Following the comma after the last name, put any message you
+want to type.  It may be as short as "nothing", i.e. 
+	firstname<comma>lastname<comma><cr/lf>,
+or multiple  lines, but that slows down the scan time (this
+entire file is  scanned any time someone logs on).  End the
+message with "]".  I usually put this in the next line, i.e.
+
+[WILL*,SMI*,Hi, will
+]
+
+and then typically follow it with the next opening "[". There
+are 2 special characters which may follow the "]" after the
+message:  a "/" or a "*".  "/" means to immediately hang up on
+this caller.  "*" means to flag this caller as a "twit", i.e.
+don't allow message entry, kill, or comments.
+
+		OVERVIEW.DOC
+An overview of the entire system.
+
+		PASSWORD. <===<<<
+This file contains the password which must be entered to go
+into operator mode.  Set to "CBBSPASS" as distributed. Note it
+must be in upper case.
+
+		SCANHELP.
+When S or Q commands are used, CBBS replies "Starting message
+#: or ? for help scanning" or something like that. SCANHELP is
+the question file which is interpreted if "?" is typed.
+
+		SUMMARY.
+This is the message summary file.  It contains the header
+(first 2 lines) of each message.  It, like the message files,
+is a simple, editable file.  The format of a header is:
+	(bell)nnnnn,nn,mm/dd/yy,from,to
+	subject,password
+
+For example (I'm using ^G to represent the bell (ctl-g):
+
+^G01234,16,11/23/79,WARD & RANDY,ALL
+TEST MESSAGE,NONE
+
+nnnnn (01234) is the message number (must be 5 digits); nn (16)
+is the # of lines in the message; mm/dd/yy is the date. (Note
+that if you don't have a clock, it might be M/D/YY, etc); from,
+to, subject are self-explanatory.  There are limits to their
+length, because of the way they are read into memory for
+summary scan.  When input, their length is tested.  If entering
+a new message with an editor, better check the CBBSWORK.ASM
+file to see how much room exists; password is the kill-password.  If no password was given, then just cr/lf follows
+the last comma.  If the message is operator-killable only, the
+word "NONE" appears.  If user killable, then there is a a 4
+letter password.  I know of no user who might have used NONE as
+a user password, and therefore resulted in the message being
+operator-killable only.
+
+If you have trouble with people killing other peoples messages,
+you can edit the summary file, and stick in passwords of NONE
+where ever no password was found.  In the editor, type:
+
+ms,^l^z,NONE^l^z
+
+meaning:
+
+m	macro (i.e. over-and-over)
+s	substitute
+,	a comma followed by
+^l	a new line (^l in ED, ^n in wordmaster)
+^z	end of string
+,NONE^l	change to comma NONE newline (NONE must be upper case)
+^z	end of string
+
+		THOUGHTS.DOC
+Miscellaneous thoughts about CBBS.
+
+		WELCOME. <===<<<
+This is the first file typed when a new caller signs on.  It
+tells of control character usage, etc.  Edit it to put your own
+CBBS's name in it.  Please preserve the (R) next to CBBS(R) and
+"Computerized Bulletin Board Systemm (R)" as CBBS is a
+registered trademark.
+
+		XHELP.COM
+This program builds the file HELP.IDX, the index into the help
+file.  Just log onto the disk which contains the HELP file, and
+type XHELP.

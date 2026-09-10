@@ -1,0 +1,349 @@
+		OVERVIEW.DOC 02/11/80
+
+O O O	O O O	O O O	O O
+O   O	O	O   O	O   O
+O O O	O O	O O O	O   O
+O O	O	O   O   O   O
+O   O	O O O	O   O	O O
+
+	O   O	O O O
+	OO OO	O
+	O O O	O O
+	O   O	O
+	O   O	O O O
+
+O O O	O O O	O O O	O O O	O O O
+O	  O	O   O	O 	  O
+O O	  O	O O O	O O O	  O
+O	  O	O O	    O	  O
+O	O O O	O   O	O O O	  O
+
+
+     Here's a quick overview of CBBS.  It's just the thoughts 
+off the top of my head.
+
+					Ward.
+
+
+CBBS is designed to work with S-100 modems, but there should be
+no troubles using it with outboard modems.
+
+Steve Vinokuroff of Vancouver B.C. Canada has been the first to
+try it, as well as double density. I have put together another
+module, CBBSMODM.ASM which is a skeleton for using CBBS with an
+outboard modem.  I plan to test it locally using my serial
+port, and my sense switch to simulate two bits in: carrier
+detect, and ring detect.
+
+CBBS will work with 1 disk, 2 is better.  The bigger the
+better, up to a point, where you might have so many messages on
+the disks that it takes a new user too long to go thru the
+summaries.  Randy and I keep about 300 messages active on
+CBBS/Chicago, and that seem OK.  200 would probably also be OK. 
+We find 300 is the number that "happens" due to a 2-month-old
+message delete policy.
+
+CBBS currently has no auto-delete.  With clocks becoming more
+prevalent, perhaps that's not so hard to do, some time in the
+future.
+
+Feedback:  It's important.  If you find bugs, or have 
+additions which you think might be of general interest to other
+CBBS operators, let us know.  You may contact me by mail at:
+
+	Ward Christensen
+	688 E. 154th St.
+	Dolton, Il. 60419
+	(312) 849-6279
+
+
+If you have hardware, backup, distribution, etc. questions,
+contact Randy:
+
+	Randy Suess
+	5219 W. Warwick
+	Chicago Il 60641  	(312) 545-7535
+
+
+Our CBBS works as follows thanks to a "kludge" board Randy put
+together.  He also put a solid state relay on the diskette
+drive spin motors.  We hear the main bearing is the first thing
+to go out on a diskette drive.
+
+When the phone rings, this resets the system, and starts a 30
+second one shot.  The 30 second one-shot disables ringing from
+resetting the system again, and starts the diskette drive spin
+motors.  We are using a Tarbell single density controller, and
+the reset causes it to boot.  We just converted to CP/M 1.4.
+The BIOS would require major mods if you have 2.0.  We have
+modified the CP/M BIOS so that, on cold boot, rather than just
+JMPing to CCP, if sense switch 80H is up (we put a SSW on a
+parallel port, using a dip-switch 'cause we had no front
+panel), then CBBS.COM is loaded and branched to.  (CBBS was
+originally called "CE" or "CE.C" so that's where some such
+names come from, such as "CEBIOS.ASM").
+
+That technique was required with 1.3, but now with 1.4, you can
+autoboot into CBBS by patching CBBS into the command buffer at
+CCP+8, and a hex 04 (the length of the word "CBBS") into CCP+7.
+
+Booting in CBBS takes less than 30 seconds (but long enough
+that a few users have had to modify their terminal programs,
+which time out due to the number of rings before CBBS answers).
+
+When CBBS gets control, it outputs to a control port, which the
+kludge board decodes, and thus leaves the spin motors on.  Thus
+the 30 second one shot is or-ed with this output port, to
+determine if the motors are to spin or not.
+
+CBBS then issues the output commands to take the modem off­
+hook, and put out carrier.
+
+We then wait 15 seconds for the incoming carrier. If you have a
+baud-rate-settable modem, we then set to 110, and go read a
+character.  If it's a carriage return (C/R) then we continue at
+110 baud.  We use 2 stop bits at 110, and 1 at all higher
+rates.  We don't bother with parity, and send 8 full data bits,
+to allow future expansion to where you might want to transfer
+fully transparent binary data via CBBS (such as when we use a
+modem transfer program).
+
+The baud rate is switched to 300, 450, then 600, to 110 (at the
+"end" of 600), then back to the beginning, 110, each time
+reading a character to see if it is a C/R.  15 loops are made
+(75 characters read in all) before giving up.  When we give up,
+we output to the control port again to turn off the spin
+motors, output to the modem to hang up the phone, and then JMP
+up to a PROM monitor, which does nothing.  We could just as
+well have gone into a loop in CBBS, because the next phone ring
+would reset the system, and start things all over again.
+
+We also do a double read of the C/R to make sure a glitched
+character isn't interpreted as a C/R at the wrong speed.
+
+		----------------
+
+Not all users will elect to put together such functions as
+Randy did, and wild instead choose to run CBBS memory resident. 
+An equate, REINIT, allows this, if set true. All the flags
+(upper case mode, operator mode, etc) are reset, and CBBS loops
+looking at ring detect.
+
+		----------------
+
+If you do not choose to use our BIOS, then you will have to
+make your own, which need follow only these guidelines:
+
+
+The console I/O functions (sÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿlows the CBBS operators to
+converse with callers if they find them in trouble, or find a
+friend on the system, etc.  This is all pretty standard coding. 
+Examples may be found in CEBIOS.ASM on the diskette.
+
+The only non-standard thing in the BIOS is the carrier detect.  
+To prevent CBBS being hung up at console in with a loss of
+carrier, return TRUE (0FFH) froÿÿÿÿÿÿÿÿÿÿÿÿÿÿarrier is lost,
+and also return 0FFH from console in, if carrier is lost.  
+Do not do a WAIT to see if it's a temporary glitch, CBBS will
+wait 1 second before looking again.  Don't just take control
+away from CBBS, as it might be in the middle of a disk write,
+such as if someone hangs up while leaving comments.  We set
+flags saying carrier is lost, and test a flag saying we can't
+go away just now, until the disk is properly closed.  (Comments
+elsewhere explain how "BYE" thus could present problems)
+
+Conceivably, someone could hang up, such as during writing
+comments, and another person call up and reset the system too
+soon, but we have not had that happen, to the best of our
+knowledge, in over 50,000 calls.
+
+		  ----------------
+
+What's next?  Get a listing of all the CBBS .ASM files, as well
+as all the .DOC files, and go thru COOKBOOK.DOC.  You will be
+expected to make some changes to the .ASM files, to tailor them
+to your environment, or just to change references to "Ward and
+Randy", and to "CBBS/Chicago.
+
+It is my intent to ship a working CBBS.COM for just "dinking
+around" with CBBS, i.e. entering messages, trying the operator
+functions, etc.  We will include some messages which you might
+like to pattern your own after, such as the one on expert user
+mode, etc.  We recommend setting the starting message number
+perhaps at 20, or perhaps 100, as this leaves some "permanent
+system message" area open from 1-19.
+
+This test CBBS is a 1 disk version, which you may use to 
+familiarize yourself with CBBS operation.  
+
+The test version of CBBS is supplied with the operator-mode
+flag already set.
+
+The operatgÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿASS.  If it didn't work, it will log a "security
+failure" to the log, and tell you it didn't know what you mean
+by "PASS".
+
+
+		  ----------------
+
+		What to watch for:
+
+As you will learn from reading the CBBS .ASM files, CBBS is not
+some elegant, efficient, well written piece of programming
+artistry.  It's more like a software patchwork quilt, with
+things tacked on here and there.  No attempt at structured
+programming was done.  I did pull out some obvious duplication
+of code in some places.  It is moderately commented, enough
+that anyone familiar with CP/M and 8080 assembler, who wants to
+get CBBS up, can and did. 
+
+CBBS had one goal in mind - that it be relatively simple.  The
+main .ASM files are not over 8000 lines, but I still feel that
+is true:  there are no fancy data structures on the disk.  All
+files are editable with any standard CP/M editor (ED,
+Wordmaster).  The only minor thing is the use of a bell (07H)
+delimiter for messages ioÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿand "]" have certain meanings in other files.
+
+The ORIGINAL CBBS organized it's message and summary files as
+follows:  10 messages were written to each message file.  The
+name of the file was MESSAGE.nnX, i.e. message 133 was in file
+MESSAGE.13X.  Similarly, the summary file wÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿhat made things quite easy.  Want to
+summarize starting at message 123? Just open file SUMMARY.1XX,
+scan for "(bell)123" and start typing.  Waoÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿûÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ bell header, erase the summary, make
+it, and write it back from memory.  This was quite fast.  Same
+lgÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿage file, except that instead of just
+compressing it out of memory, it was written to the tail-end of
+"KILLED" file, so operators could see short-lived messages, or
+messages which were mischievously killed. 
+
+Ok, what's the problem?  Well, when we got up around 550
+(numbers, not active), then there weren't enough directory
+entries available.  Each file, whether it contains only 1
+message, or all 10 were still present, took a directory entry.
+
+Messages had to be packed every now and then (as often as
+weekly, on a busy system).  This was an inconvenience to users,
+as message 524 would become 219 or some such, and they couldn't
+tell where to pick up from the last time they called in.  Also,
+someone would leave a message which says "in regard to your
+message 524" which would not be 524 after the pack.
+
+So, in July 1979, portions of CBBS were rewritten, and the
+package given the name "version 3".  Message numbers went to 5
+digits, and would never be reused or packed. Later, keeping
+track of the number of active messages was also added.  If you
+ever think this number got out of sync, use the program T.COM
+supplied on the disk, to count the lines in the summary file. 
+(T SUMMARY #)  This, divided by 2, should be the number of
+active messages stored at the third parameter in the file
+"NEXT".  Alternatively, BUILDSUM will TELL you the number.
+
+The simplicity of the file name selection which was used for
+the previous version, was similar in version 3 for message
+files, except that the low order digits of the message number
+was used.
+
+For example, message 1234 would be written to file MESSAGE.X34. 
+Message 1235 was also written to this file, because CBBS did an
+integer divide of 35 by 2, getting 17, then multiplied by 2,
+getting 34.  This is done in routine "SETMSGN".  We tried a
+"ANI" technique with a mask over the low ASCII digit of the
+file number, but that didn't work too well, so we went to the
+divide-and-multiply technique.  On a double density system with
+128 entries in the directory, you might want to go to having
+100 message files, by settingÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿeve, and kill.
+
+This technique spread the messages around nicely. No message
+file got out of hand size-wise.
+
+Unfortunately, I was unable to come up with a similarly simple
+approach for the summary file.  I admit fancy techniques could
+be used, such as an "indexed" random-access approach, but
+remember the "S" and "Q" command search the summary
+sequentially, and you don't want perfoÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿûF…)ª¦¦ ©,—7ÿÿÿÿÿÿÿÿÿÿÿÿk, as summary numbers can take any value
+from 00001 to, well, however many messages a given CBBS will
+ever get!  CBBS/Chicago is currently at message 10200.  Thus,
+to make "S" and "Q" work quickly, I went to a single summary
+file.  This caused a problem, since it might be too big to fit
+into memory, during the kill.  Other than this, there would be
+no need to have more than 24K in a CBBS system.  So, Kill now
+works as follows, (instead of the read in, erase, write back
+like before):  The summary is flagged, and the operators, under
+operator mode, use a new PURGE command to pass the summary thru
+memory once to delete ALL flagged summaries.
+
+		  ----------------
+
+I have written a BUILDSUM program to reconstruct the summary
+file.  Also supplied is a crude CONVERT.ASC program to convert
+previous CBBS files to the oÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ50 message files. I'll try to come up
+with a new more generalized one, if you old-CBBS operators ask
+hard enough for it. (No one has - so I won't)
+
+		  ----------------
+
+The future of CBBS:  Lots of people are interested in CBBS type
+systems sharing messages.  That is of course quite hard to
+manage, due to the cost of long distance phone calling.  Also
+it's difficult to determine which messages are eligible for
+forwarding.  Do you just take all that ask to be forwarded, or
+have a file of people who are allowed to forward?  ..or build a
+file of message numbers which have been asked to be forwarded,
+then as operators, validate the list?  Wow, many more questions
+than answers.
+
+Some CBBS systems might like to go to a mailbox system for
+certain users;  Others might like to add a feature which keeps
+track of a caller's last time called, i.e. high message number,
+date called, etc.  There is certainly no limit to the ideas
+which can be thought up, just a limit to who has the time and
+energy to implement them.
+
+A totally new generation of CBBS software, I feel, would have
+to be based around more of a "transaction monitor" like the big
+computer systems have, i.e. rather than CBBS having to be a
+gigantic program, there could be a monitor which brings in the
+needed pieces as overlays.  Conceptually this is not difficult. 
+It could be done by re-writing CCP to be the monitor, and have
+it call in .COM files on request.  The problem would be sharing
+common subroutines, such as those file-related ones in CBBS
+like EXTEND, SETRD, RDBYTE, etc.  
+
+This would probably be most easily done by making a ROOT CBBS
+with all the necessary subroutines, and have overlays for
+entry, kill, summary, etc.  Then CBBS could easily be extended. 
+I still have this idea in the back of my mind, but it will take
+quite a bit of time to convert it.  Another problem is that
+each overlay will take another directory entry, and with 50
+message files already (could go to less?) the directory of a
+single density disk would not be enough.
+
+It does sound intriguing, maybe someday it will happen.  I 
+particularly like the idea since, for example, private
+mailboxes, or program download could be implemented more
+easily.
+
+	  --------------------------------
+
+Thanks for buying CBBS.  The $50 goes to keeping CBBS/Chicago
+alive and well, (just bought new drives after 3 years of use)
+but of course doesn't come close to paying for it. 
+
+Please feel free to contact Randy or me if you have questions
+or suggestions.  If there are any glaring holes in the
+admittedly meager documentation, let me know.  It will be
+improved on a time- and energy- available basis.  Any and all
+suggestions, are greatly appreciated.  Hmmm, let me qualify
+that - I enjoy hacking up CBBS to add new things.  I solicit
+"ideas", but am not really interested in "code".  "Not Invented
+Here"?  Mebbe, or perhaps its that I'm a "loaner", and
+accepting some mods, means I'd have to accept "them all", and
+programming "by committee" just doesn't work outÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ, etc.  
+
+YOU should feel free to "hack up" CBBS to be whatever you want
+it to be - perhaps make you changes "modular" to facilitate
+integrating them into a possible future release of CBBS.
+
+				Thanks,
+				Ward Christensen
+				11/28/81

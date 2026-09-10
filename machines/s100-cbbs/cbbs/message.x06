@@ -1,0 +1,11 @@
+00007,09,08/22/78,WARD AND RANDY,ALL
+EXPERT USER MODE,NONE
+Expert user mode was added to CBBS in mid-1978.  This
+is for you I-F you are quite familiar with the system,
+and requently use control-C to skip parts of the output
+which you are familiar with.  What I did, was to note
+when I used control-C, and then in expert user mode,
+I automatically shorten the output as if you had control-C'd.
+Enter expert user mode with an 'X' command.  Don't try
+expert user mode unless you are familiar with the system, or
+the prompts might be too cryptic.
