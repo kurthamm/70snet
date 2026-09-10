@@ -1219,199 +1219,69 @@ keyed by destination and era so 1980 does not block 1983 (spec 5.5)."
 
 ## Task 6: The CBBS host adapter
 
-Wraps Task 1's machine as a `LineInterface`. This is where the emulated phone
-line's carrier and off-hook bits become software.
+**Superseded design, corrected 2026-09-09 during implementation.** This task
+originally routed CBBS's bytes through `cpmsim`'s auxiliary FIFOs. That was
+written before the spike found CBBS does its terminal I/O through the CP/M BIOS
+console vectors — and the auxiliary device strips `\r` and `^Z`, which would
+silently corrupt a modem stream. The emulator side is now built and committed:
+the machine's *console* is the telephone line.
+
+**The line interface the emulator presents** (all four are FIFOs in the
+directory named by `SEVENTIESNET_LINE`):
+
+| FIFO | Direction | Carries |
+|---|---|---|
+| `line.in` | supervisor → machine | caller's bytes, 8-bit clean |
+| `line.out` | machine → supervisor | CBBS's bytes, 8-bit clean |
+| `phone.in` | supervisor → machine | one byte of line state, read at port `0FFH` |
+| `phone.out` | machine → supervisor | one byte per `OUT`, carrying off-hook |
+
+Line-state bits are **active low**, per `cbbsmodm.asm`:
+`0x40` = NOT carrier, `0x20` = NOT ring, `0x10` = off-hook (an output).
+Idle is `0xFF`: no carrier, not ringing.
 
 **Files:**
-- Modify: `machines/s100-cbbs/patches/phone-port.diff` (make the port dynamic)
 - Create: `packages/cbbs-host/src/host.ts`
-- Test: `packages/cbbs-host/src/host.test.ts` (integration; requires Task 1)
+- Test: `packages/cbbs-host/src/host.test.ts`
 
 **Interfaces:**
-- Consumes: `LineInterface` (Task 5), `LineFrame` (Task 2).
+- Consumes: `LineInterface` (Task 5).
 - Produces: `class CbbsHost implements LineInterface`, constructed as
-  `new CbbsHost({ machineDir: string })`, plus `start(): Promise<void>` and
-  `stop(): Promise<void>`.
+  `new CbbsHost({ machineDir, lineDir, inFictionDate })`, plus
+  `start(): Promise<void>` and `stop(): Promise<void>`. Task 8 uses these.
 
-- [ ] **Step 1: Make the modem control port dynamic**
+- [ ] **Step 1: Understand the boot sequence, because the console is the line**
 
-Task 1 hardwired carrier present. Replace that with two FIFOs alongside the
-existing `auxin`/`auxout`, so the supervisor drives the line:
+Since the console *is* the telephone line, CP/M's own prompt and the commands
+that launch CBBS travel over `line.out` too. `start()` must therefore:
 
-```c
-/* 70snet: modem control port 0FFH, driven by the supervisor.
-   phonein  - one byte, the value port 0FFH returns (active low bits)
-   phoneout - one byte per OUT, so the supervisor sees off-hook (10H) */
-static BYTE phone_status = 0xFF;          /* no carrier, not ringing */
-static int phonein_fd = -1, phoneout_fd = -1;
+1. Spawn `run.sh` with `SEVENTIESNET_LINE` and `SEVENTIESNET_DATE` set.
+2. Wait for the four FIFOs to exist, then open them.
+3. Write `C:\r` then `CBBS\r` to `line.in` to launch the board.
+4. Swallow everything up to that point — a caller must not receive CP/M noise.
 
-static BYTE phone_in(void) {
-    BYTE b;
-    if (phonein_fd >= 0 && read(phonein_fd, &b, 1) == 1) phone_status = b;
-    return phone_status;
-}
+CBBS then sits in `CONNECT` (`cbbsmodm.asm`) polling port `0FFH` for carrier.
+It prints nothing until carrier appears, which is what makes this workable.
 
-static void phone_out(BYTE data) {
-    if (phoneout_fd >= 0) { ssize_t n = write(phoneout_fd, &data, 1); UNUSED(n); }
-}
-```
+- [ ] **Step 2: Ring, and answer**
 
-Open them next to the aux FIFOs in `init_io()`, with `O_RDONLY | O_NONBLOCK`
-and `O_WRONLY | O_NONBLOCK` respectively. Regenerate the patch:
+`ring()` writes the ring state, then carrier, to `phone.in`. CBBS's `CONNECT`
+sees carrier and prints its banner, which is the first thing the caller hears.
 
-```bash
-cd machines/s100-cbbs/vendor/z80pack && git diff > ../../patches/phone-port.diff
-cd cpmsim/srcsim && make -j4
-```
+- [ ] **Step 3: Hang up, and re-arm for the next caller**
 
-- [ ] **Step 2: Write the failing integration test**
+`hangup()` writes `0xFF` — carrier drops, and CBBS sees loss of carrier and
+exits to CP/M. The supervisor must then relaunch it with `CBBS\r` so the next
+caller gets a fresh sign-on. CBBS 3.5 with `REINIT=FALSE` is reloaded per call,
+exactly as the sysop's startup did; messages survive on the disk image, which
+`persist.sh` proves.
 
-`packages/cbbs-host/src/host.test.ts`:
+- [ ] **Step 4: Verify**
 
-```ts
-import { describe, it, expect, afterEach, vi } from "vitest"
-import { CbbsHost } from "./host"
-
-const MACHINE = new URL("../../../machines/s100-cbbs", import.meta.url).pathname
-
-describe("CbbsHost", () => {
-  let host: CbbsHost | null = null
-  afterEach(async () => { await host?.stop(); host = null })
-
-  it("answers a ring with carrier and sends its banner", async () => {
-    host = new CbbsHost({ machineDir: MACHINE })
-    await host.start()
-
-    const seen: number[] = []
-    host.onData(b => seen.push(...b))
-
-    await host.ring(new AbortController().signal)
-    host.send(new Uint8Array([0x0d]))   // CBBS detects speed from a CR
-
-    await vi.waitFor(() => {
-      expect(String.fromCharCode(...seen).toUpperCase()).toContain("CBBS")
-    }, { timeout: 30_000 })
-  }, 60_000)
-
-  it("drops carrier on hangup so the next caller gets a fresh CBBS", async () => {
-    host = new CbbsHost({ machineDir: MACHINE })
-    await host.start()
-    await host.ring(new AbortController().signal)
-    host.hangup()
-    await host.ring(new AbortController().signal)   // must not throw
-  }, 60_000)
-})
-```
-
-- [ ] **Step 3: Run it to verify it fails**
-
-Run: `pnpm vitest run packages/cbbs-host`
-Expected: FAIL — cannot resolve `./host`.
-
-- [ ] **Step 4: Implement the supervisor**
-
-`packages/cbbs-host/src/host.ts` spawns `run.sh`, opens the four FIFOs, and
-implements `LineInterface`:
-
-```ts
-import { spawn, type ChildProcess } from "node:child_process"
-import { createReadStream, createWriteStream, type WriteStream } from "node:fs"
-import type { LineInterface } from "@70snet/exchange/line"
-
-const CARRIER = 0x40   // active low: clear means carrier present
-const RING    = 0x20   // active low
-const OFFHOOK = 0x10
-
-const IDLE = 0xff      // no carrier, not ringing
-
-export class CbbsHost implements LineInterface {
-  private sim: ChildProcess | null = null
-  private phoneIn: WriteStream | null = null
-  private auxIn: WriteStream | null = null
-  private dataCbs: ((b: Uint8Array) => void)[] = []
-  private failCbs: ((e: Error) => void)[] = []
-  private offHook = false
-
-  constructor(private readonly opts: { machineDir: string }) {}
-
-  async start(): Promise<void> {
-    this.sim = spawn("./run.sh", { cwd: this.opts.machineDir, stdio: "pipe" })
-    this.sim.on("exit", code =>
-      this.fail(new Error(`CBBS host exited with code ${code}`)))
-
-    await waitForFifos()
-    this.phoneIn = createWriteStream("/tmp/.z80pack/cpmsim.phonein")
-    this.auxIn = createWriteStream("/tmp/.z80pack/cpmsim.auxin")
-    createReadStream("/tmp/.z80pack/cpmsim.auxout")
-      .on("data", chunk => {
-        const bytes = new Uint8Array(chunk as Buffer)
-        for (const cb of this.dataCbs) cb(bytes)
-      })
-    createReadStream("/tmp/.z80pack/cpmsim.phoneout")
-      .on("data", chunk => {
-        const last = (chunk as Buffer).at(-1) ?? 0
-        this.offHook = (last & OFFHOOK) !== 0
-      })
-    this.setLine(IDLE)
-  }
-
-  async ring(signal: AbortSignal): Promise<void> {
-    this.setLine(IDLE & ~RING)
-    // CBBS's CONNECT loop waits about 15 seconds for carrier; give it one.
-    this.setLine(IDLE & ~CARRIER)
-    signal.throwIfAborted()
-  }
-
-  send(bytes: Uint8Array): void {
-    if (this.auxIn === null) throw new Error("CbbsHost.send before start()")
-    this.auxIn.write(bytes)
-  }
-
-  onData(cb: (b: Uint8Array) => void): void { this.dataCbs.push(cb) }
-  onFailure(cb: (e: Error) => void): void { this.failCbs.push(cb) }
-
-  hangup(): void {
-    this.setLine(IDLE)          // carrier drops; CBBS sees loss and exits
-    this.restartCbbs()
-  }
-
-  async stop(): Promise<void> {
-    this.sim?.kill()
-    this.sim = null
-  }
-
-  private setLine(status: number): void {
-    if (this.phoneIn === null) throw new Error("CbbsHost line control before start()")
-    this.phoneIn.write(Uint8Array.from([status]))
-  }
-
-  /** CBBS 3.5 with REINIT=FALSE is reloaded for each call, exactly as the
-   *  sysop's startup did. Messages survive on the disk image, not in RAM. */
-  private restartCbbs(): void {
-    this.sim?.stdin?.write("CBBS\r")
-  }
-
-  private fail(err: Error): void {
-    for (const cb of this.failCbs) cb(err)
-  }
-}
-```
-
-- [ ] **Step 5: Run the test**
-
-Run: `pnpm vitest run packages/cbbs-host`
-Expected: PASS, 2 tests. If the banner never appears, the fault is in the phone
-port or the assembly, not here — go back to `machines/s100-cbbs/verify.sh`.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add packages/cbbs-host machines/s100-cbbs/patches
-git commit -m "feat(cbbs-host): supervise the S-100 machine as a telephone line
-
-Carrier, ring and off-hook are real I/O port bits driven over FIFOs, so CBBS
-sees the line exactly as cbbsmodm.asm expects."
-```
+`machines/s100-cbbs/verify.sh` and `persist.sh` already prove the machine end.
+This task's own test asserts the Node adapter: that `ring()` produces the CBBS
+banner on `onData`, and that after `hangup()` a second `ring()` produces a
+fresh banner rather than a dead line.
 
 ---
 
