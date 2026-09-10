@@ -1,3 +1,6 @@
 [submodule "machines/s100-cbbs/vendor/z80pack"]
 	path = machines/s100-cbbs/vendor/z80pack
 	url = https://github.com/udo-munk/z80pack
+[submodule "vendor/apple2ts"]
+	path = vendor/apple2ts
+	url = https://github.com/kurthamm/apple2ts

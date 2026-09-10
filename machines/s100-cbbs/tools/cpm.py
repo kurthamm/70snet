@@ -5,7 +5,7 @@ cpmsim reads the console from stdin and expects a terminal; a plain pipe makes
 it spin on zero-length reads. Everything that needs to type at the CP/M prompt
 goes through here.
 """
-import os, pty, select, subprocess, sys, termios, time
+import os, pty, re, select, subprocess, sys, termios, time
 
 class CpmSim:
     def __init__(self, cwd, env=None, quiet=True):
@@ -60,6 +60,24 @@ class CpmSim:
             os.write(self.master, ch.encode("latin-1"))
             self.read(1.0 / cps)
         return self.text()
+
+    def command(self, cmd, seconds=60):
+        """Send a CP/M command and wait for the prompt to come back.
+
+        Fixed settle delays are not safe here: if the previous command has not
+        finished, CP/M eats the first characters of the next one and the
+        transfer aborts halfway through a build. Synchronise on the prompt.
+        """
+        before = len(self.out)
+        os.write(self.master, cmd.encode("latin-1"))
+        end = time.time() + seconds
+        while time.time() < end:
+            self.read(0.2)
+            tail = self.text()[max(0, before - 4):].rstrip()
+            # CP/M prompts are "A>", "B>" ... at the end of the output
+            if re.search(r"[A-P]>$", tail):
+                return self.text()
+        raise TimeoutError(f"no CP/M prompt after {cmd.strip()!r} in {seconds}s")
 
     def wait_for(self, needle, seconds):
         """Read until `needle` appears. Returns True if it did."""

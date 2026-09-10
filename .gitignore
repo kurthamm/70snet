@@ -8,3 +8,8 @@ machines/s100-cbbs/build/
 machines/s100-cbbs/build.log
 machines/s100-cbbs/verify.log
 machines/s100-cbbs/cbbs/*.zip
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.tsbuildinfo

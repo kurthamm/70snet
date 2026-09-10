@@ -152,22 +152,20 @@ def install_data(s, room_date="1980-10-01"):
     print(f"  message base as of {room_date}: "
           f"{len(all_nums)} messages, highest #{max(all_nums)}")
 
-    s.send("A:\r", settle=1)          # PIP lives on A:, and we may be on C:
+    s.command("A:\r")               # PIP lives on A:, and we may be on C:
     # Clear any previous room's message base. Without this a later build
     # leaves stale files behind and the room shows messages it cannot have.
-    s.send("A:PIP\r", settle=1)
-    s.send("\x03", settle=1)
-    s.send("ERA C:MESSAGE.*\r", settle=2)
+    s.command("ERA C:MESSAGE.*\r")
     for path, name in data:
         if not path.exists():
             raise SystemExit(f"missing CBBS data file: {path}")
         serve(path)
-        s.send(f"PIP C:{name}=RDR:\r", settle=2.5)
+        s.command(f"PIP C:{name}=RDR:\r")
         if "PIP?" in s.text()[-200:]:
             raise SystemExit(f"PIP not found while transferring {name}")
 
     # Confirm, rather than trust the absence of an error message.
-    s.send("A:STAT C:*.*\r", settle=5)
+    s.command("A:STAT C:*.*\r")
     out = s.text()
     for _, name in data:
         stem = name.split(".")[0]
@@ -204,22 +202,21 @@ def main():
 
         for f in sources:
             serve(f)
-            s.send(f"PIP B:{f.name.upper()}=RDR:\r", settle=2.5)
+            s.command(f"PIP B:{f.name.upper()}=RDR:\r")
             if "ERROR" in s.text()[-200:].upper():
                 raise SystemExit(f"transfer failed for {f.name}\n{s.text()[-400:]}")
             print(f"  -> B:{f.name.upper()}")
 
         # LINKASM ships as Intel HEX; LOAD turns it into an executable.
         serve(CBBS / "linkasm.com.hex")
-        s.send("PIP B:LINKASM.HEX=RDR:\r", settle=3)
-        s.send("B:\r", settle=1)
-        s.send("A:LOAD LINKASM\r", settle=4)
+        s.command("PIP B:LINKASM.HEX=RDR:\r")
+        s.command("B:\r")
+        s.command("A:LOAD LINKASM\r")
 
         # LINKASM CBBS.SHP -- source drive, hex drive, prn drive (Z = none).
         print("assembling (this follows the LINK chain through 20+ files)...")
-        s.send("LINKASM CBBS.BCZ\r", settle=1)
-        s.wait_for("B>", 240)
-        s.send("A:STAT C:CBBS.HEX\r", settle=4)
+        s.command("LINKASM CBBS.BCZ\r", seconds=600)
+        s.command("A:STAT C:CBBS.HEX\r")
         out = s.text()
         (ROOT / "build.log").write_text(out, encoding="latin-1")
 
@@ -229,9 +226,9 @@ def main():
             print(out[-2500:])
             raise SystemExit("FAIL: LINKASM produced no CBBS.HEX -- see build.log")
 
-        s.send("C:\r", settle=1)
-        s.send("A:LOAD CBBS\r", settle=8)
-        s.send("A:STAT C:CBBS.COM\r", settle=4)
+        s.command("C:\r")
+        s.command("A:LOAD CBBS\r")
+        s.command("A:STAT C:CBBS.COM\r")
         out = s.text()
         (ROOT / "build.log").write_text(out, encoding="latin-1")
 

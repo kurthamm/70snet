@@ -6,4 +6,5 @@
 # produce a working binary, the "real software" claim does not hold.
 set -euo pipefail
 cd "$(dirname "$0")"
+./setup.sh
 exec python3 tools/build.py "$@"
