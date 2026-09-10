@@ -1,0 +1,6 @@
+{
+  "name": "@70snet/registry",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" }
+}
