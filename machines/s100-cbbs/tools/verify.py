@@ -68,8 +68,10 @@ def main():
 
     print("PASS: CBBS 3.5.0, assembled from the 1981 source, answered a call")
     print("      and served a message from February 1978.")
-    print("      A December 1981 message is correctly out of reach (§5.3).")
+    print("      A November 1981 message is correctly out of reach (§5.3).")
     i = in_period.find("MSG 00002")
+    if i == -1:
+        return fail("MSG 00002 marker not found in retrieved message", in_period)
     print("-" * 64)
     print(in_period[i:i + 400])
     return 0

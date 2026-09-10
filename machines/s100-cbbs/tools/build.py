@@ -6,7 +6,7 @@ Host files reach CP/M through the auxiliary reader: cpmsim serves
 one file per host-side swap. No cpmtools, no installs -- the whole toolchain
 is in this tree.
 """
-import os, re, shutil, subprocess, sys, pathlib
+import fcntl, os, re, shutil, subprocess, sys, pathlib
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from cpm import CpmSim
 
@@ -17,6 +17,13 @@ AUXIN = "/tmp/.z80pack/cpmsim.auxin"
 
 # The room this disk is built for (spec §5.3: no time travel).
 ROOM_DATE = os.environ.get("SEVENTIESNET_DATE", "1980-10-01")
+
+# ROOM_DATE feeds string comparisons in filter_messages() (date <= room_date),
+# so a malformed value would silently pick a wrong (or empty) message base
+# instead of failing loudly. Require a zero-padded YYYY-MM-DD.
+if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", ROOM_DATE):
+    raise SystemExit(
+        f"SEVENTIESNET_DATE must be a zero-padded YYYY-MM-DD date, got {ROOM_DATE!r}")
 
 # Assembly-time configuration. CBBS supports an outboard serial modem as a
 # first-class option (spec §12.2) -- this selects it instead of the PMMI.
@@ -68,6 +75,13 @@ def serve(path: pathlib.Path):
         raise SystemExit(f"{path.name} is {len(payload)} bytes; larger than the pipe buffer")
     fd = os.open(AUXIN, os.O_WRONLY | os.O_NONBLOCK)
     try:
+        # O_NONBLOCK was only needed for the open() to fail fast if cpmsim
+        # isn't reading the FIFO yet. Left on, a write to a full pipe buffer
+        # raises BlockingIOError instead of blocking, and the loop below
+        # would abort partway through -- silently truncating the transfer.
+        # Clear it now so writes block until the whole payload is consumed.
+        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
         written = 0
         while written < len(payload):
             written += os.write(fd, payload[written:])
@@ -164,22 +178,30 @@ def install_data(s, room_date="1980-10-01"):
         if "PIP?" in s.text()[-200:]:
             raise SystemExit(f"PIP not found while transferring {name}")
 
-    # Confirm, rather than trust the absence of an error message.
+    # Confirm, rather than trust the absence of an error message. Capture the
+    # output length *before* issuing STAT so we check only what STAT itself
+    # produced -- checking a tail of the cumulative log can match leftover
+    # text from an earlier command instead of this STAT's own output.
+    before = len(s.text())
     s.command("A:STAT C:*.*\r")
-    out = s.text()
+    new_out = s.text()[before:]
     for _, name in data:
-        stem = name.split(".")[0]
-        if stem.upper() not in out[-1500:].upper():
-            print(out[-1200:])
+        # records(), not a substring search: a file listed in DIR with 0
+        # records is indistinguishable from a real one by name alone, and an
+        # empty file here has already broken this build twice before.
+        if not records(new_out, name):
+            print(new_out[-1200:])
             raise SystemExit(f"FAIL: {name} is not on drive C")
         print(f"  -> C:{name}")
 
 def records(out: str, name: str) -> int:
     """Records reported by STAT for a file. Presence in DIR is not proof --
     an empty file is listed exactly like a real one."""
-    stem, ext = name.split(".")
+    # NEXT has no extension (CBBS's own file, ships that way) -- partition()
+    # instead of split(".") tolerates that; ext comes back empty for it.
+    stem, _, ext = name.partition(".")
     for line in out.splitlines():
-        if stem.upper() in line.upper() and ext.upper() in line.upper():
+        if stem.upper() in line.upper() and (not ext or ext.upper() in line.upper()):
             parts = line.split()
             if parts and parts[0].isdigit():
                 return int(parts[0])
@@ -239,6 +261,7 @@ def main():
         print(f"CBBS.COM: {recs} records ({recs * 128} bytes)")
 
         install_data(s, ROOM_DATE)
+        (ROOT / "disks").mkdir(exist_ok=True)
         shutil.copy(SIM / "disks/drivec.dsk", ROOT / "disks/cbbs-drive-c.dsk")
 
     print("OK: CBBS.COM built from the 1981 source")
