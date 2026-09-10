@@ -4,7 +4,7 @@ import { Telephone } from "./telephone"
 const silentTones = {
   dialTone: vi.fn(), ringback: vi.fn(), busy: vi.fn(),
   carrier: vi.fn(), silence: vi.fn(),
-  handshake: vi.fn(), data: vi.fn(),
+  handshake: vi.fn(), data: vi.fn(), dtmf: vi.fn(),
 }
 
 /** A fresh set of tone spies, so one test's calls can't leak into another's
@@ -12,7 +12,7 @@ const silentTones = {
 const freshTones = (overrides: Partial<typeof silentTones> = {}) => ({
   dialTone: vi.fn(), ringback: vi.fn(), busy: vi.fn(),
   carrier: vi.fn(), silence: vi.fn(),
-  handshake: vi.fn(), data: vi.fn(),
+  handshake: vi.fn(), data: vi.fn(), dtmf: vi.fn(),
   ...overrides,
 })
 

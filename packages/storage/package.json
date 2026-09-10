@@ -1,0 +1,9 @@
+{
+  "name": "@70snet/storage",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": {
+    "@70snet/media": "workspace:*"
+  }
+}

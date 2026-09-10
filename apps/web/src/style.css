@@ -1,0 +1,501 @@
+/* 70snet -- the 1980 room. Hand-written CSS + inline SVG only: no images,
+   no framework, no icon set. Wood, beige moulded plastic, a phosphor CRT,
+   a Western-Electric-style handset -- built as flat shapes with gradients,
+   bevels and shadows standing in for a photograph. */
+
+:root {
+  --wood-dark: #3e2a1c;
+  --wood-mid: #6b4426;
+  --wood-light: #8a5a34;
+  --wood-plank: #7a4d2c;
+
+  --putty: #d8cfb8;
+  --putty-light: #eae3cf;
+  --putty-dark: #b7ad93;
+  --putty-shadow: #8f8567;
+
+  --crt-bezel: #cbbfa0;
+  --crt-glass: #0c1a10;
+  --phosphor: #58ff8e;
+  --phosphor-dim: #1f6a3d;
+
+  --ink: #241a10;
+  --paper: #f4ecd8;
+  --paper-line: #c9bd9c;
+  --accent-red: #8c2c22;
+  --accent-black: #17130f;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--wood-dark);
+  color: var(--paper);
+  font-family: "Courier New", ui-monospace, Menlo, Consolas, monospace;
+  overflow-x: hidden;
+}
+
+body {
+  padding: 12px 16px 48px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.12) 0px,
+      rgba(0, 0, 0, 0) 3px,
+      rgba(0, 0, 0, 0) 38px,
+      rgba(0, 0, 0, 0.08) 41px
+    ),
+    linear-gradient(180deg, var(--wood-light) 0%, var(--wood-mid) 45%, var(--wood-dark) 100%);
+}
+
+#app { max-width: 1100px; margin: 0 auto; }
+
+.room > h1 {
+  text-align: center;
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+  margin: 4px 0 18px;
+}
+
+[hidden] { display: none !important; }
+
+/* ---------- The room view: a wide shot, machines as objects ---------- */
+
+.room-view { width: 100%; }
+
+.room-scene {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+  padding: 28px 20px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.35)) ,
+    repeating-linear-gradient(
+      0deg,
+      var(--wood-plank) 0px,
+      var(--wood-plank) 46px,
+      rgba(0, 0, 0, 0.18) 48px
+    );
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.room-machine {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.room-machine:hover,
+.room-machine:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px) scale(1.02);
+  outline: 2px solid var(--phosphor-dim);
+  outline-offset: 2px;
+}
+
+.room-machine-art { width: 100%; height: auto; max-width: 220px; }
+
+.room-machine-shadow { fill: rgba(0, 0, 0, 0.45); }
+.room-desk-top { fill: var(--wood-mid); stroke: var(--wood-dark); stroke-width: 1; }
+.room-desk-front { fill: var(--wood-dark); }
+.room-desk-leg { fill: var(--wood-dark); }
+.room-computer-case { fill: var(--putty); stroke: var(--putty-shadow); stroke-width: 1; }
+.room-computer-screen { fill: var(--crt-glass); }
+.room-computer-glow { fill: var(--phosphor); opacity: 0.35; }
+.room-computer-vent { fill: var(--putty-dark); }
+.room-telephone-body { fill: var(--accent-black); rx: 2; }
+.room-telephone-dial { fill: var(--putty); }
+
+.room-machine-label {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- The desk view: one machine, close up ---------- */
+
+.desk-views { width: 100%; }
+
+.desk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px 32px;
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at top, rgba(255, 220, 160, 0.08), transparent 60%),
+    repeating-linear-gradient(
+      90deg,
+      var(--wood-mid) 0px,
+      var(--wood-mid) 60px,
+      var(--wood-light) 62px,
+      var(--wood-mid) 64px
+    );
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.back-to-room {
+  align-self: flex-start;
+  appearance: none;
+  border: 1px solid var(--putty-shadow);
+  background: linear-gradient(180deg, var(--putty-light), var(--putty-dark));
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.back-to-room:hover { filter: brightness(1.05); }
+.back-to-room:active { transform: translateY(1px); box-shadow: none; }
+
+.desk > h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.museum-card {
+  max-width: 46em;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-line);
+  border-left: 4px solid var(--accent-red);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+}
+
+/* The screen: the biggest object on the page, by a wide margin. Apple II
+   is ~40x24 text at roughly a 4:3 frame; the outer bezel scales with the
+   viewport, the iframe fills it. */
+.crt-frame {
+  width: min(96vw, 1000px);
+  aspect-ratio: 4 / 3;
+  padding: clamp(10px, 2.4vw, 26px);
+  border-radius: 18px;
+  background:
+    linear-gradient(160deg, var(--putty-light) 0%, var(--putty) 45%, var(--putty-dark) 100%);
+  box-shadow:
+    inset 0 0 0 2px var(--putty-shadow),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.25),
+    0 18px 40px rgba(0, 0, 0, 0.55);
+  position: relative;
+}
+
+.crt-frame::before {
+  /* the moulded bevel highlight, top-left, like a photographed case */
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 14px;
+  box-shadow: inset 2px 2px 6px rgba(255, 255, 255, 0.5), inset -3px -3px 10px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.machine-screen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 10px;
+  background: var(--crt-glass);
+  box-shadow:
+    inset 0 0 40px 6px rgba(0, 0, 0, 0.9),
+    inset 0 0 90px rgba(88, 255, 142, 0.08);
+  /* a soft screen curvature */
+  filter: brightness(1.03);
+}
+
+.crt-frame::after {
+  /* scanlines + phosphor glow, laid over the iframe -- can't touch iframe
+     internals, so this is a sibling overlay pinned to the same box */
+  content: "";
+  position: absolute;
+  inset: clamp(10px, 2.4vw, 26px);
+  border-radius: 10px;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.22) 0px,
+      rgba(0, 0, 0, 0.22) 1px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0) 3px
+    );
+  box-shadow: inset 0 0 60px 14px rgba(88, 255, 142, 0.12);
+  mix-blend-mode: multiply;
+}
+
+.power-switch {
+  appearance: none;
+  border: 1px solid var(--putty-shadow);
+  background: linear-gradient(180deg, var(--putty-light), var(--putty-dark));
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--putty-shadow), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.power-switch:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--putty-shadow); }
+.power-switch[aria-pressed="true"] {
+  background: linear-gradient(180deg, #7bffa0, #2f9a56);
+  color: #06210f;
+}
+
+/* ---------- The telephone ---------- */
+
+.telephone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 20px;
+  width: min(92vw, 340px);
+  border-radius: 10px 10px 26px 26px;
+  background: linear-gradient(180deg, #2a2622 0%, var(--accent-black) 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.telephone-status {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--phosphor);
+  text-shadow: 0 0 6px rgba(88, 255, 142, 0.6);
+}
+
+.telephone-number {
+  margin: 0;
+  min-width: 10ch;
+  text-align: center;
+  padding: 4px 10px;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  color: var(--phosphor);
+  background: #071b0e;
+  border: 1px solid var(--phosphor-dim);
+  border-radius: 4px;
+  text-shadow: 0 0 6px rgba(88, 255, 142, 0.7);
+}
+
+.telephone [data-handset],
+.telephone [data-modem-switch] {
+  appearance: none;
+  border: 1px solid var(--putty-shadow);
+  background: linear-gradient(180deg, var(--putty-light), var(--putty-dark));
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+.telephone [data-handset]:active,
+.telephone [data-modem-switch]:active { transform: translateY(1px); box-shadow: none; }
+
+.rotary-dial {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--putty), var(--putty-dark));
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.keypad-key {
+  appearance: none;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--ink);
+  background: radial-gradient(circle at 35% 30%, #fdf9ec, #cabf9f 70%, #a89b77 100%);
+  box-shadow: 0 3px 0 var(--putty-shadow), 0 4px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.keypad-key:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--putty-shadow);
+}
+.keypad-key:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* Hayes autodial select + button share the dial-pad slot */
+.rotary-dial select {
+  grid-column: 1 / -1;
+  font-family: inherit;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--putty-shadow);
+}
+.rotary-dial select + button {
+  grid-column: 1 / -1;
+  appearance: none;
+  border: 1px solid var(--putty-shadow);
+  background: linear-gradient(180deg, var(--putty-light), var(--putty-dark));
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ---------- The disk box ---------- */
+
+.disk-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.disk-box-lid {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 6px;
+}
+.disk-box-lid:hover,
+.disk-box-lid:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: 2px solid var(--phosphor-dim);
+  outline-offset: 2px;
+}
+
+.disk-box-art { width: 140px; height: auto; }
+.disk-box-base { fill: var(--putty-dark); stroke: var(--putty-shadow); }
+.disk-box-top { fill: var(--putty); stroke: var(--putty-shadow); }
+.disk-sleeve { fill: var(--accent-red); opacity: 0.85; }
+
+.disk-box-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.disk-box-note {
+  max-width: 26em;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* ---------- Phone book & manuals ---------- */
+
+.phone-book,
+.manuals {
+  margin: 28px auto 0;
+  max-width: 700px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-line);
+  border-radius: 4px;
+  padding: 14px 18px 18px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.phone-book h2,
+.manuals h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--paper-line);
+  padding-bottom: 6px;
+}
+
+.phone-book ul,
+.manuals ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phone-book li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed var(--paper-line);
+  padding-bottom: 6px;
+}
+
+.entry-name { font-weight: bold; }
+.entry-number { color: var(--accent-red); }
+.entry-speeds { color: #555; font-size: 0.78rem; }
+
+.entry-fidelity {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.entry-fidelity-real-software { color: #1a6b2f; }
+.entry-fidelity-reconstruction { color: #8c5a00; }
+
+.manuals a {
+  color: var(--accent-red);
+  font-size: 0.85rem;
+}
+
+/* ---------- Phone width, no horizontal scroll ---------- */
+
+@media (max-width: 480px) {
+  body { padding: 8px 8px 32px; }
+  .room-scene { padding: 18px 10px; gap: 16px; }
+  .telephone { width: 100%; }
+  .crt-frame { width: 100%; }
+}

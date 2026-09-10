@@ -5,8 +5,15 @@
   "exports": {
     "./*": "./src/*.ts"
   },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
   "dependencies": {
     "@70snet/protocol": "workspace:*",
     "@70snet/registry": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^8.1.4"
   }
 }

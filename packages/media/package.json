@@ -1,0 +1,6 @@
+{
+  "name": "@70snet/media",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" }
+}

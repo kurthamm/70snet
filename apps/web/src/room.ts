@@ -44,22 +44,22 @@ export type ExchangeConnector = (
   onMessage: (msg: ServerMessage) => void
 ) => ExchangeSocket
 
-/** The default connector: a plain WebSocket to the exchange. The exchange's
- *  address is not something this page may guess at -- the switchboard
- *  (apps/switchboard) runs as its own process, so `data-exchange-url` on the
- *  document root is the one place that configuration comes from (set it to
- *  wherever that switchboard is listening; see the comment on it in
- *  index.html). Missing config fails immediately, with a named error, the
- *  moment a call is attempted -- never a silent no-op (project fail-fast
- *  rules). */
+/** The default connector: a plain WebSocket to the exchange. The switchboard
+ *  (apps/switchboard) now serves this very page (spec: single host, single
+ *  Cloudflare tunnel, same origin) -- so its address is not a guess, it is
+ *  the page's own address: same host, same port, `wss:` if the page was
+ *  loaded over `https:`/`wss:` else `ws:`. That is a correct default, not a
+ *  fallback papering over missing config. `data-exchange-url` on the
+ *  document root remains as an explicit override, for local development
+ *  where the switchboard listens on a different port than the page dev
+ *  server (see the comment on it in index.html). */
 export function webSocketExchangeConnector(): ExchangeConnector {
   return (number, onMessage) => {
-    const url = document.documentElement.dataset.exchangeUrl
-    if (url === undefined || url === "") {
-      throw new Error(
-        "no exchange configured: set data-exchange-url on <html> to the switchboard's address"
-      )
-    }
+    const override = document.documentElement.dataset.exchangeUrl
+    const url =
+      override !== undefined && override !== ""
+        ? override
+        : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`
     const ws = new WebSocket(url)
     // A close the caller asked for (hanging up) is not a dropped call --
     // only an unrequested close/error means the line actually went dead.
@@ -123,12 +123,52 @@ export function renderRoom(
   heading.textContent = room.name
   el.appendChild(heading)
 
-  const machines = document.createElement("div")
-  machines.className = "machines"
-  for (const machine of room.machines) {
-    machines.appendChild(renderMachine(machine, connect, destinations, room.date))
+  // Two views, spec §4.1: a wide shot of the room, where each machine is an
+  // object to click on, and a close-up "desk" for whichever machine the
+  // visitor is currently at. Both are built from `room.machines` up front
+  // (nothing about the desks is deferred to a code change per machine);
+  // only which one is visible ever changes.
+  const roomView = document.createElement("div")
+  roomView.className = "room-view"
+  roomView.setAttribute("data-room-view", "")
+
+  const roomScene = document.createElement("div")
+  roomScene.className = "room-scene"
+  roomScene.setAttribute("data-room-scene", "")
+  roomView.appendChild(roomScene)
+
+  const deskViews = document.createElement("div")
+  deskViews.className = "desk-views"
+  deskViews.setAttribute("data-desk-views", "")
+  deskViews.hidden = true
+
+  const desksById = new Map<string, HTMLElement>()
+
+  const showRoom = () => {
+    roomView.hidden = false
+    deskViews.hidden = true
+    for (const desk of desksById.values()) desk.hidden = true
   }
-  el.appendChild(machines)
+
+  const showDesk = (id: string) => {
+    const desk = desksById.get(id)
+    if (desk === undefined) throw new Error(`no desk built for machine "${id}"`)
+    roomView.hidden = true
+    deskViews.hidden = false
+    for (const [otherId, other] of desksById) other.hidden = otherId !== id
+  }
+
+  for (const machine of room.machines) {
+    roomScene.appendChild(renderMachineObject(machine, () => showDesk(machine.id)))
+
+    const desk = renderDesk(machine, connect, destinations, room.date, showRoom)
+    desk.hidden = true
+    desksById.set(machine.id, desk)
+    deskViews.appendChild(desk)
+  }
+
+  el.appendChild(roomView)
+  el.appendChild(deskViews)
 
   el.appendChild(renderPhoneBook(destinations, room.date))
   el.appendChild(renderManuals())
@@ -136,15 +176,69 @@ export function renderRoom(
   return el
 }
 
-function renderMachine(
+/** One machine as an object sitting in the wide room shot -- a desk with a
+ *  computer on it. Clicking it is how the visitor walks up to that machine
+ *  (spec §4.1: "Clicking a machine brings it to life in the page"). */
+function renderMachineObject(machine: MachineSpec, onSelect: () => void): HTMLElement {
+  const button = document.createElement("button")
+  button.type = "button"
+  button.className = "room-machine"
+  button.setAttribute("data-machine", machine.id)
+  button.setAttribute("aria-label", `Walk up to ${machine.name}`)
+
+  const svgNS = "http://www.w3.org/2000/svg"
+  const svg = document.createElementNS(svgNS, "svg")
+  svg.setAttribute("viewBox", "0 0 200 140")
+  svg.setAttribute("class", "room-machine-art")
+  svg.setAttribute("aria-hidden", "true")
+  svg.innerHTML = `
+    <ellipse cx="100" cy="128" rx="78" ry="8" class="room-machine-shadow" />
+    <rect x="16" y="86" width="168" height="30" rx="3" class="room-desk-top" />
+    <rect x="16" y="116" width="168" height="10" class="room-desk-front" />
+    <rect x="24" y="126" width="10" height="10" class="room-desk-leg" />
+    <rect x="166" y="126" width="10" height="10" class="room-desk-leg" />
+    <rect x="52" y="46" width="96" height="46" rx="4" class="room-computer-case" />
+    <rect x="60" y="52" width="80" height="30" rx="2" class="room-computer-screen" />
+    <rect x="60" y="52" width="80" height="30" rx="2" class="room-computer-glow" />
+    <rect x="58" y="86" width="84" height="6" class="room-computer-vent" />
+    <rect x="112" y="70" width="26" height="18" rx="1" class="room-telephone-body" />
+    <circle cx="118" cy="74" r="2" class="room-telephone-dial" />
+    <circle cx="126" cy="74" r="2" class="room-telephone-dial" />
+    <circle cx="134" cy="74" r="2" class="room-telephone-dial" />
+  `
+  button.appendChild(svg)
+
+  const label = document.createElement("span")
+  label.className = "room-machine-label"
+  label.textContent = machine.name
+  button.appendChild(label)
+
+  button.addEventListener("click", onSelect)
+  return button
+}
+
+/** The close-up desk view for one machine: its screen, power switch,
+ *  telephone and disk box, plus the museum card and a way back to the room
+ *  (spec §4.1). Everything here comes from this one `MachineSpec` -- a
+ *  second machine is a second call to this function, not new code. */
+function renderDesk(
   machine: MachineSpec,
   connect: ExchangeConnector,
   destinations: Destination[],
-  date: string
+  date: string,
+  onBack: () => void
 ): HTMLElement {
   const section = document.createElement("section")
-  section.className = "machine"
-  section.setAttribute("data-machine", machine.id)
+  section.className = "desk"
+  section.setAttribute("data-desk-machine", machine.id)
+
+  const back = document.createElement("button")
+  back.type = "button"
+  back.className = "back-to-room"
+  back.setAttribute("data-back-to-room", "")
+  back.textContent = "← Back to the room"
+  back.addEventListener("click", onBack)
+  section.appendChild(back)
 
   const name = document.createElement("h2")
   name.textContent = machine.name
@@ -159,6 +253,9 @@ function renderMachine(
   card.textContent = machine.card
   section.appendChild(card)
 
+  const screenFrame = document.createElement("div")
+  screenFrame.className = "crt-frame"
+
   // An un-powered machine shows nothing at all: no `src` until the switch
   // is thrown. Once thrown, an empty Disk II grinds forever (spec §6.4) --
   // that is authentic, and this file does nothing to "fix" it.
@@ -166,6 +263,7 @@ function renderMachine(
   screen.className = "machine-screen"
   screen.setAttribute("data-machine-frame", "")
   screen.setAttribute("title", `${machine.name} screen`)
+  screenFrame.appendChild(screen)
 
   const power = document.createElement("button")
   power.type = "button"
@@ -187,14 +285,66 @@ function renderMachine(
     }
     power.setAttribute("aria-pressed", "true")
     power.textContent = "Power: ON"
-    screen.src = "../../vendor/apple2ts/dist/index.html"
+    // Served by the switchboard at a stable path (apps/switchboard/src/
+    // server.ts), same origin as this page -- not bundled or copied into
+    // apps/web/dist, since vendor/apple2ts/dist is ~69 MB and already built.
+    screen.src = "/apple2ts/index.html"
   })
 
   section.appendChild(power)
-  section.appendChild(screen)
+  section.appendChild(screenFrame)
   section.appendChild(renderTelephone(machine, connect, destinations, date))
+  section.appendChild(renderDiskBox())
 
   return section
+}
+
+/** The disk box beside the machine. There is no media subsystem yet (that
+ *  is separate, future work), so opening it has nothing real to show --
+ *  but it must say so, in the same museum-card voice as everything else
+ *  here, rather than silently doing nothing (per the owner's brief). */
+function renderDiskBox(): HTMLElement {
+  const wrap = document.createElement("div")
+  wrap.className = "disk-box"
+  wrap.setAttribute("data-disk-box", "")
+
+  const lid = document.createElement("button")
+  lid.type = "button"
+  lid.className = "disk-box-lid"
+  lid.setAttribute("data-disk-box-open", "")
+  lid.setAttribute("aria-label", "Open the diskette box")
+
+  const svgNS = "http://www.w3.org/2000/svg"
+  const svg = document.createElementNS(svgNS, "svg")
+  svg.setAttribute("viewBox", "0 0 120 70")
+  svg.setAttribute("class", "disk-box-art")
+  svg.setAttribute("aria-hidden", "true")
+  svg.innerHTML = `
+    <rect x="4" y="18" width="112" height="48" rx="3" class="disk-box-base" />
+    <rect x="4" y="4" width="112" height="20" rx="3" class="disk-box-top" />
+    <rect x="10" y="24" width="4" height="36" class="disk-sleeve" />
+    <rect x="18" y="24" width="4" height="36" class="disk-sleeve" />
+    <rect x="26" y="24" width="4" height="36" class="disk-sleeve" />
+  `
+  lid.appendChild(svg)
+
+  const label = document.createElement("span")
+  label.className = "disk-box-label"
+  label.textContent = "Disk Box"
+  lid.appendChild(label)
+
+  const note = document.createElement("p")
+  note.className = "museum-card disk-box-note"
+  note.setAttribute("data-disk-box-note", "")
+  note.textContent = "The diskettes are not here yet."
+  note.hidden = true
+
+  lid.addEventListener("click", () => {
+    note.hidden = false
+  })
+
+  wrap.append(lid, note)
+  return wrap
 }
 
 /** The telephone: handset, rotary dial (or a single Hayes dial button, per
@@ -211,7 +361,8 @@ function renderTelephone(
   wrap.setAttribute("data-telephone", "")
   wrap.setAttribute("data-modem", machine.modem.id)
 
-  const telephone = new Telephone({ tones: new Tones(), dialing: machine.modem.dialing })
+  const tones = new Tones()
+  const telephone = new Telephone({ tones, dialing: machine.modem.dialing })
   let socket: ExchangeSocket | null = null
 
   // The partially dialled number lives here, not inside the manual-dial
@@ -230,15 +381,38 @@ function renderTelephone(
   status.setAttribute("data-telephone-status", "")
   status.textContent = telephone.state
 
+  // What the visitor has dialled so far, shown back to them as they press
+  // keys -- without this, pressing digits produced no visible sign anything
+  // had happened at all.
+  const numberDisplay = document.createElement("p")
+  numberDisplay.className = "telephone-number"
+  numberDisplay.setAttribute("data-dialed-number", "")
+  numberDisplay.textContent = "—"
+
+  const formatDialed = (digits: string): string => {
+    if (digits.length === 0) return "—"
+    const parts = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)]
+    return parts.filter(p => p.length > 0).join("-")
+  }
+
   const dataSwitch = document.createElement("button")
   dataSwitch.type = "button"
   dataSwitch.setAttribute("data-modem-switch", "")
   dataSwitch.textContent = "Modem: VOICE"
 
+  // The keypad only does anything once the handset is up -- exactly like a
+  // real phone, where pressing keys with the handset down does not
+  // silently fail, it simply cannot be done. Collected here so `refresh`
+  // can enable/disable every key from the one place that tracks state.
+  const dialButtons: HTMLButtonElement[] = []
+
   const refresh = () => {
     status.textContent = telephone.state
     if (telephone.state !== "connected") inDataMode = false
     dataSwitch.textContent = inDataMode ? "Modem: DATA" : "Modem: VOICE"
+    numberDisplay.textContent = formatDialed(dialed)
+    const canDial = telephone.state !== "on-hook"
+    for (const button of dialButtons) button.disabled = !canDial
   }
 
   const endCall = () => {
@@ -288,22 +462,34 @@ function renderTelephone(
   dialPad.setAttribute("data-rotary-dial", "")
 
   if (machine.modem.dialing === "manual") {
-    for (const digit of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]) {
+    // A standard touch-tone keypad: 1-2-3 / 4-5-6 / 7-8-9 / *-0-#. Every key
+    // plays its true DTMF pair the instant it's pressed -- that's pure
+    // audible feedback (`tones.dtmf`) and happens independent of whether
+    // the key is one that can actually be dialled. Only the ten digit keys
+    // feed `telephone.dial`, which still governs the pulse timing that
+    // decides when a number is complete -- `*`/`#` make their tone and do
+    // nothing else, exactly as on a real keypad phone.
+    const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"]
+    for (const key of keys) {
       const btn = document.createElement("button")
       btn.type = "button"
-      btn.setAttribute("data-dial-digit", digit)
-      btn.textContent = digit
+      btn.className = "keypad-key"
+      btn.setAttribute("data-dial-digit", key)
+      btn.textContent = key
+      btn.disabled = telephone.state === "on-hook"
       btn.addEventListener("click", () => {
-        void telephone.dial(digit).then(() => {
-          dialed += digit
+        tones.dtmf(key)
+        if (key === "*" || key === "#") return
+        void telephone.dial(key).then(() => {
+          dialed += key
           refresh()
           if (dialed.length === 10) {
             const number = `${dialed.slice(0, 3)}-${dialed.slice(3, 6)}-${dialed.slice(6)}`
             onConnected(number)
-            dialed = ""
           }
         })
       })
+      dialButtons.push(btn)
       dialPad.appendChild(btn)
     }
   } else {
@@ -338,6 +524,7 @@ function renderTelephone(
   }
 
   wrap.appendChild(status)
+  wrap.appendChild(numberDisplay)
   wrap.appendChild(handset)
   wrap.appendChild(dataSwitch)
   wrap.appendChild(dialPad)

@@ -16,6 +16,11 @@ export interface TonePlayer {
   /** The FSK burble while bytes flow. Only audible in the brief window
    *  between carrier-up and the handset going down — see `flipToData`. */
   data(active: boolean): void
+  /** One touch-tone keypress: its true DTMF pair, briefly. Purely audible
+   *  feedback for the keypad -- it plays independent of `dial`'s own pulse
+   *  timing, which still governs when a manually-dialled number actually
+   *  completes. */
+  dtmf(key: string): void
 }
 
 export class Telephone {
