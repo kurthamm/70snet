@@ -37,7 +37,7 @@ because the board has one line.
 
 | | |
 |---|---|
-| Tests | 71 across 11 files |
+| Tests | 74 across 13 files |
 | Types | `tsc -b` clean, 8 projects |
 | Machine gates | `verify.sh`, `persist.sh`, `reconnect.sh` |
 
