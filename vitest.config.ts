@@ -7,5 +7,15 @@ export default defineConfig({
     // machine driven by Python -- neither belongs in this run.
     include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "vendor/**", "machines/**"],
+    // `apps/web` renders the room to real DOM (room.test.ts) and needs
+    // jsdom; `packages/*` stay on vitest's default plain-Node environment
+    // so they keep running fast with no DOM overhead.
+    environmentMatchGlobs: [["apps/web/src/**/*.test.ts", "jsdom"]],
+    // The cbbs-host and switchboard suites each boot the emulated S-100
+    // machine, and cpmsim reads its disk images from one shared directory.
+    // Two instances at once corrupt each other's disks, so test files run one
+    // at a time. The fast suites cost a second or two; the alternative is a
+    // whole class of flake that only shows up under load.
+    fileParallelism: false,
   },
 })

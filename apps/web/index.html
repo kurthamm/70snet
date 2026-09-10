@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    data-exchange-url: the switchboard's WebSocket address. Unset here on
+    purpose -- the switchboard server (plan Task 8) is not yet part of this
+    repository, so this page has nothing true to put here. Set it once that
+    server exists; room.ts fails loudly, not silently, if a visitor tries to
+    dial before it is set (see webSocketExchangeConnector in src/room.ts).
+  -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>70snet &mdash; the 1980 room</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
