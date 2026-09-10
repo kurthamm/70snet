@@ -12,6 +12,12 @@
     },
     {
       "path": "packages/exchange"
+    },
+    {
+      "path": "apps/switchboard"
+    },
+    {
+      "path": "packages/cbbs-host"
     }
   ]
 }

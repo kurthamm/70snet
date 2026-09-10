@@ -28,8 +28,11 @@ class CpmSim:
         return self
 
     def __exit__(self, *a):
-        try: self.proc.kill()
-        except Exception: pass
+        # Reap the emulator before returning. Without the wait() a killed
+        # cpmsim lingers as a zombie holding its disk images, and the next
+        # run races it for the same files.
+        self.proc.kill()
+        self.proc.wait()
         os.close(self.master)
 
     def read(self, seconds):
@@ -68,12 +71,16 @@ class CpmSim:
         finished, CP/M eats the first characters of the next one and the
         transfer aborts halfway through a build. Synchronise on the prompt.
         """
-        before = len(self.out)
+        before = len(self.text())
         os.write(self.master, cmd.encode("latin-1"))
         end = time.time() + seconds
         while time.time() < end:
             self.read(0.2)
-            tail = self.text()[max(0, before - 4):].rstrip()
+            # Only what this command produced. Slicing from before-N could
+            # match the PREVIOUS prompt and return immediately, which is how
+            # a half-finished transfer ate the next command's first letters.
+            # Measured against decoded text, since text() strips NULs.
+            tail = self.text()[before:].rstrip()
             # CP/M prompts are "A>", "B>" ... at the end of the output
             if re.search(r"[A-P]>$", tail):
                 return self.text()

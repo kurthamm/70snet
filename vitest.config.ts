@@ -17,5 +17,11 @@ export default defineConfig({
     // at a time. The fast suites cost a second or two; the alternative is a
     // whole class of flake that only shows up under load.
     fileParallelism: false,
+    // Run tests in child processes, not worker threads. The cbbs-host and
+    // switchboard suites spawn an emulator, kill its process group, and hold
+    // FIFO read streams across its death. Under the default threads pool the
+    // reboot path hangs; the identical sequence completes in ~3s under a
+    // plain node process, and under forks.
+    pool: "forks",
   },
 })

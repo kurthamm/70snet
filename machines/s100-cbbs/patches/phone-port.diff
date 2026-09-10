@@ -1,11 +1,15 @@
 diff --git a/cpmsim/srcsim/simio.c b/cpmsim/srcsim/simio.c
-index 8eaa2d1e..a42c3202 100644
+index 8eaa2d1e..f4173273 100644
 --- a/cpmsim/srcsim/simio.c
 +++ b/cpmsim/srcsim/simio.c
-@@ -232,6 +232,46 @@ dskdef_t disks[16] = {
+@@ -232,6 +232,50 @@ dskdef_t disks[16] = {
  	{ "drivep.dsk", &drivep, 256, 16384 }
  };
  
++static char pipe_dir[512];
++static char auxin_path[600];
++static char auxout_path[600];
++
 +static int line_in_fd = -1;
 +static int line_out_fd = -1;
 +static int phone_in_fd = -1;
@@ -49,7 +53,7 @@ index 8eaa2d1e..a42c3202 100644
  /*
   *	Forward declaration of the I/O handlers for all used ports
   */
-@@ -265,6 +305,10 @@ static BYTE time_in(void);
+@@ -265,6 +309,10 @@ static BYTE time_in(void);
  static void time_out(BYTE data);
  static BYTE delay_in(void);
  static void delay_out(BYTE data);
@@ -60,7 +64,7 @@ index 8eaa2d1e..a42c3202 100644
  static BYTE hwctl_in(void);
  static void hwctl_out(BYTE data);
  static BYTE speedl_in(void), speedh_in(void);
-@@ -316,9 +360,10 @@ in_func_t *const port_in[256] = {
+@@ -316,9 +364,10 @@ in_func_t *const port_in[256] = {
  	[ 21] = mmus_in,
  	[ 22] = mmuc_in,
  	[ 23] = mmup_in,
@@ -74,7 +78,7 @@ index 8eaa2d1e..a42c3202 100644
  	[ 28] = delay_in,
  	[ 30] = speedl_in,
  	[ 31] = speedh_in,
-@@ -332,7 +377,8 @@ in_func_t *const port_in[256] = {
+@@ -332,7 +381,8 @@ in_func_t *const port_in[256] = {
  	[ 47] = cond4_in,
  	[ 50] = nets1_in,
  	[ 51] = netd1_in,
@@ -84,7 +88,7 @@ index 8eaa2d1e..a42c3202 100644
  };
  
  /*
-@@ -358,9 +404,10 @@ out_func_t *const port_out[256] = {
+@@ -358,9 +408,10 @@ out_func_t *const port_out[256] = {
  	[ 21] = mmus_out,
  	[ 22] = mmuc_out,
  	[ 23] = mmup_out,
@@ -98,7 +102,7 @@ index 8eaa2d1e..a42c3202 100644
  	[ 28] = delay_out,
  	[ 30] = speedl_out,
  	[ 31] = speedh_out,
-@@ -375,6 +422,7 @@ out_func_t *const port_out[256] = {
+@@ -375,6 +426,7 @@ out_func_t *const port_out[256] = {
  	[ 50] = nets1_out,
  	[ 51] = netd1_out,
  	[160] = hwctl_out,	/* virtual hardware control */
@@ -106,7 +110,7 @@ index 8eaa2d1e..a42c3202 100644
  	[161] = host_bdos_out	/* host file I/O hook */
  };
  
-@@ -395,6 +443,8 @@ void init_io(void)
+@@ -395,19 +447,34 @@ void init_io(void)
  {
  	register int i;
  	struct stat sbuf;
@@ -115,7 +119,55 @@ index 8eaa2d1e..a42c3202 100644
  #if defined(NETWORKING) && defined(TCPASYNC)
  	static struct sigaction newact;
  #endif
-@@ -680,7 +730,7 @@ static BYTE cons_in(void)
+ 
+ #ifdef PIPES
+-	/* check if /tmp/.z80pack exists */
+-	if (stat("/tmp/.z80pack", &sbuf) != 0)
+-		mkdir("/tmp/.z80pack", 0777);	/* no, create it */
+-	/* and then the pipes */
+-	if (stat("/tmp/.z80pack/cpmsim.auxin", &sbuf) != 0)
+-		mkfifo("/tmp/.z80pack/cpmsim.auxin", 0666);
+-	if (stat("/tmp/.z80pack/cpmsim.auxout", &sbuf) != 0)
+-		mkfifo("/tmp/.z80pack/cpmsim.auxout", 0666);
++	/* 70snet: the auxiliary pipes live at a FIXED GLOBAL PATH upstream, so
++	   only one cpmsim could ever boot on a machine: auxout below is opened
++	   O_WRONLY, which BLOCKS until a reader appears, and a cpmrecv left over
++	   from another instance holds it. That is a hang with no output at all.
++	   Give each machine its own directory when one is named. */
++	{
++		const char *wd = getenv("SEVENTIESNET_WORKDIR");
++		if (wd != NULL)
++			snprintf(pipe_dir, sizeof(pipe_dir), "%s/.pipes", wd);
++		else
++			snprintf(pipe_dir, sizeof(pipe_dir), "/tmp/.z80pack");
++	}
++	snprintf(auxin_path, sizeof(auxin_path), "%s/cpmsim.auxin", pipe_dir);
++	snprintf(auxout_path, sizeof(auxout_path), "%s/cpmsim.auxout", pipe_dir);
++
++	if (stat(pipe_dir, &sbuf) != 0)
++		mkdir(pipe_dir, 0777);
++	if (stat(auxin_path, &sbuf) != 0)
++		mkfifo(auxin_path, 0666);
++	if (stat(auxout_path, &sbuf) != 0)
++		mkfifo(auxout_path, 0666);
+ 
+ 	pid_rec = fork();
+ 	switch (pid_rec) {
+@@ -429,11 +496,11 @@ void init_io(void)
+ 		exit(EXIT_FAILURE);
+ 		break;
+ 	}
+-	if ((auxin = open("/tmp/.z80pack/cpmsim.auxin", O_RDONLY | O_NONBLOCK)) == -1) {
++	if ((auxin = open(auxin_path, O_RDONLY | O_NONBLOCK)) == -1) {
+ 		LOGE(TAG, "can't open pipe auxin");
+ 		exit(EXIT_FAILURE);
+ 	}
+-	if ((auxout = open("/tmp/.z80pack/cpmsim.auxout", O_WRONLY)) == -1) {
++	if ((auxout = open(auxout_path, O_WRONLY)) == -1) {
+ 		LOGE(TAG, "can't open pipe auxout");
+ 		exit(EXIT_FAILURE);
+ 	}
+@@ -680,7 +747,7 @@ static BYTE cons_in(void)
  		busy_loop_cnt = 0;
  	}
  
@@ -124,7 +176,7 @@ index 8eaa2d1e..a42c3202 100644
  	p[0].events = POLLIN;
  	p[0].revents = 0;
  	poll(p, 1, 0);
-@@ -1114,6 +1164,12 @@ static BYTE cond_in(void)
+@@ -1114,6 +1181,12 @@ static BYTE cond_in(void)
  	char c;
  
  	busy_loop_cnt = 0;
@@ -137,7 +189,7 @@ index 8eaa2d1e..a42c3202 100644
  	if (read(fileno(stdin), &c, 1) != 1)
  		LOGE(TAG, "can't read console 0");
  	return (BYTE) c;
-@@ -1300,6 +1356,11 @@ static BYTE netd1_in(void)
+@@ -1300,6 +1373,11 @@ static BYTE netd1_in(void)
   */
  static void cond_out(BYTE data)
  {
@@ -149,7 +201,7 @@ index 8eaa2d1e..a42c3202 100644
  again:
  	if (write(fileno(stdout), (char *) &data, 1) != 1) {
  		if (errno == EINTR) {
-@@ -2049,6 +2110,122 @@ static void hwctl_out(BYTE data)
+@@ -2049,6 +2127,122 @@ static void hwctl_out(BYTE data)
   *	I/O handler for read hardware control
   *	returns lock status of the port
   */
@@ -272,3 +324,37 @@ index 8eaa2d1e..a42c3202 100644
  static BYTE hwctl_in(void)
  {
  	return hwctl_lock;
+diff --git a/cpmsim/srctools/cpmrecv.c b/cpmsim/srctools/cpmrecv.c
+index 5b7530bf..cfa4c03c 100644
+--- a/cpmsim/srctools/cpmrecv.c
++++ b/cpmsim/srctools/cpmrecv.c
+@@ -29,6 +29,7 @@ int signal_catched;
+ 
+ int main(int argc, char *argv[])
+ {
++	char auxout_path[600];
+ 	char c;
+ 	int fdin, fdout;
+ 	ssize_t n;
+@@ -41,7 +42,20 @@ int main(int argc, char *argv[])
+ 		puts("usage: cpmrecv filename &");
+ 		exit(EXIT_FAILURE);
+ 	}
+-	if ((fdin = open("/tmp/.z80pack/cpmsim.auxout", O_RDONLY)) == -1) {
++	/* 70snet: match the emulator's per-machine pipe directory. cpmsim
++	   opens auxout O_WRONLY, which blocks until we open the read end -- so
++	   if we look in the wrong place the whole machine hangs at boot with no
++	   output at all. */
++	{
++		const char *wd = getenv("SEVENTIESNET_WORKDIR");
++		if (wd != NULL)
++			snprintf(auxout_path, sizeof(auxout_path),
++				 "%s/.pipes/cpmsim.auxout", wd);
++		else
++			snprintf(auxout_path, sizeof(auxout_path),
++				 "/tmp/.z80pack/cpmsim.auxout");
++	}
++	if ((fdin = open(auxout_path, O_RDONLY)) == -1) {
+ 		perror("auxout pipe");
+ 		exit(EXIT_FAILURE);
+ 	}

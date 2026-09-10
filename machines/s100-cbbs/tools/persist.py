@@ -11,14 +11,24 @@ reads the message back. Asserts two things:
 
 Runs against a copy of the disk so the gate stays deterministic.
 """
-import os, shutil, sys, pathlib
+import os, re, shutil, sys, pathlib
 sys.path.insert(0, os.path.dirname(__file__))
 from cpm import CpmSim
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SIM = ROOT / "vendor/z80pack/cpmsim"
 ROOM_DATE = os.environ.get("SEVENTIESNET_DATE", "1980-10-01")
+if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", ROOM_DATE):
+    raise SystemExit(f"SEVENTIESNET_DATE must be YYYY-MM-DD, got {ROOM_DATE!r}")
 EXPECTED_STAMP = f"{ROOM_DATE[5:7]}/{ROOM_DATE[8:10]}/{ROOM_DATE[2:4]}"
+
+def next_message_number() -> int:
+    """The number CBBS will assign the next post. Hard-coding it breaks the
+    moment the room's date changes and a different set of messages is kept."""
+    nxt = ROOT / "build" / "NEXT"
+    if not nxt.exists():
+        raise SystemExit(f"{nxt} is missing; run build.sh first")
+    return int(nxt.read_bytes().split(b"\r\n")[0])
 
 SUBJECT = "HELLO FROM 1980"
 BODY = "THIS MESSAGE MUST OUTLIVE THE MACHINE."
@@ -36,6 +46,7 @@ def login(s):
         raise SystemExit("FAIL: never reached the function menu")
 
 def main():
+    msgno = next_message_number()
     env = {"SEVENTIESNET_DATE": ROOM_DATE}
     disk = SIM / "disks/drivec.dsk"
     backup = SIM / "disks/drivec.persist.bak"
@@ -71,7 +82,7 @@ def main():
             login(s)
             s.type("R\r")
             s.wait_for("RETRIEVE", 15)
-            s.type("10\r")
+            s.type(f"{msgno}\r")
             s.wait_for("--END OF", 20)
             read_back = s.text()
     finally:
@@ -91,7 +102,7 @@ def main():
 
     print(f"PASS: a message posted in the {ROOM_DATE} room survived a restart")
     print(f"      and CBBS stamped it {EXPECTED_STAMP} from the emulated clock.")
-    i = read_back.find("MSG 00010")
+    i = read_back.find(f"MSG {msgno:05d}")
     if i < 0:
         print("FAIL: could not locate the message header to display")
         return 1

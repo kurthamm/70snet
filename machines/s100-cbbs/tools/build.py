@@ -47,7 +47,7 @@ def configure():
         if n != 1:
             raise SystemExit(f"cbbs.asm: expected exactly one {pat!r}, changed {n}")
     (CBBS / "cbbs.asm").write_text(src, encoding="latin-1")
-    print("configured cbbs.asm: SERMODM=TRUE, PMMI=FALSE, CLOCKS=FALSE")
+    print("configured cbbs.asm: SERMODM=TRUE, PMMI=FALSE, CLOCKS=TRUE")
 
 # The LINK chain, in the order LINKASM follows it. Only these are needed:
 # the unused modem drivers (PMMI, Hayes, IDS) and clock boards are left off

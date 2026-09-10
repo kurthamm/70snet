@@ -1,0 +1,10 @@
+{
+  "name": "@70snet/cbbs-host",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": {
+    "@70snet/exchange": "workspace:*",
+    "@70snet/protocol": "workspace:*"
+  }
+}
