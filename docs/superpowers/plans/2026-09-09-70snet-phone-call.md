@@ -1462,6 +1462,13 @@ unrecoverable."
 - Create: `apps/switchboard/src/server.ts`, `apps/switchboard/src/main.ts`
 - Test: `apps/switchboard/src/server.test.ts`
 
+**Note on pacing, corrected during implementation.** The 300-baud pacer lives
+here, on the server, and only on the destination-to-caller direction. Bytes
+from the destination arrive as fast as the emulator produces them and must be
+slowed to 30 characters per second; bytes from the visitor are already limited
+by how fast a person types, so pacing them would only add lag to their own
+keystrokes.
+
 **Interfaces:**
 - Consumes: `Exchange`, `CbbsHost`, `BaudPacer`, `ClientMessage`/`ServerMessage`.
 - Produces: `createSwitchboard(opts): { port: number; close(): Promise<void> }`.
@@ -1571,7 +1578,12 @@ const BITS_PER_CHAR = 10 // 8N1
 
 export async function createSwitchboard(opts: { port: number }) {
   const machineDir = new URL("../../../machines/s100-cbbs", import.meta.url).pathname
-  const cbbs = new CbbsHost({ machineDir, inFictionDate: ROOM_1980.date })
+  const lineDir = process.env.SEVENTIESNET_LINE ?? "/tmp/70snet-line"
+  const cbbs = new CbbsHost({
+    machineDir,
+    lineDir,
+    inFictionDate: ROOM_1980.date,
+  })
   await cbbs.start()
 
   const exchange = new Exchange({
