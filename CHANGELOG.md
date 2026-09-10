@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased
+## Mothballed — 2026-09-10
+
+Work stopped here. Plan A is complete, merged and deployed; Plan B is two
+tasks of eight. See README "State" for what is and is not built.
+
+### Added
+- **Deployed at https://70snet.hamm.me** — one host, one process, behind a
+  Cloudflare tunnel. `70snet.service` and `cloudflared-70snet.service`, both
+  enabled. `deploy/build.sh` runs before every start, so a pull plus a restart
+  is a deploy.
+- **The room, rebuilt.** Two views: a wide shot of the 1980 room, and a desk
+  view per machine with the CRT dominant, a touch-tone keypad playing true DTMF
+  pairs, a museum card, and the disk box as an object.
+- **Plan B tasks 1-2.** `packages/media` — the media model and the rule that a
+  room shows only what the visitor owned by its date. `packages/storage` —
+  the visitor's own browser, keeping `persist()`'s three outcomes distinct,
+  because "false" is not "unavailable".
+
+### Fixed
+- Dialling did nothing for two reasons: the pressed digits were never
+  displayed, and pressing one with the handset down threw a rejection nobody
+  caught. Keys are disabled until the handset is lifted, and the number shows
+  as it is typed.
+- The keypad played touch-tone but the dial waited rotary pulse time -- 1.7
+  seconds for a 0. Dialling is now a named mode on the modem.
+- Twenty review findings before the merge, three critical: Hayes dialling read
+  an attribute only the rotary path set, one malformed frame could take the
+  server down, and the reconnect fixture leaked an emulator on every run.
+
+## Earlier
 
 ### Added
 - Design spec for the 1980 computer room (`docs/superpowers/specs/`), covering
