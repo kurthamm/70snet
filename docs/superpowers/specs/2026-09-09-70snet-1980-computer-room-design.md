@@ -311,7 +311,7 @@ and nothing else, which matches the history: XMODEM shipped separately as
 Christensen's `MODEM.ASM`, and the file-trading boards came later.
 
 Adding downloads to CBBS would mean modifying it, which would forfeit the *real
-software* claim that §10 makes the gate on this project. We will not do it.
+software* claim that §11 makes the gate on this project. We will not do it.
 
 The period-correct answer is better anyway. In 1980 you did not download a disk
 from a board — **you called the other person.** You arranged it in advance, both
@@ -327,7 +327,7 @@ visitor who cannot handle that media cannot do anything past dialling.
 ### 6.1 Media, not diskettes
 
 The engine's unit is a **medium** — one physical thing you can hold — because
-§12's 1977 room is cassette-only and a diskette-shaped abstraction would not
+§13's 1977 room is cassette-only and a diskette-shaped abstraction would not
 survive it:
 
 ```ts
@@ -480,9 +480,128 @@ switchboard and land in the receiving box as `provenance: "received"`.
 **This gates on comms software.** The Super Serial Card's firmware terminal
 mode (§4.2) is enough to dial and read a board, but not to transfer a file.
 Transfer needs a real terminal program with XMODEM on an Apple diskette, and
-which one we can source and defensibly host is an open question — see §11.
+which one we can source and defensibly host is an open question — see §12.
 
-## 7. Data flow: one phone call
+## 7. The room's physical interface
+
+Everything in §4 through §6 concerns what the room contains. This section
+concerns what it is like to sit at it.
+
+### 7.1 Sound
+
+Sound is content, and it is held to §4.4's standard: sourced where it can be,
+labelled honestly where it cannot.
+
+**The call.** Every tone in a 1980 phone call is a specified frequency, so
+these are generated exactly rather than approximated:
+
+| | Composition | Cadence |
+|---|---|---|
+| Dial tone | 350 + 440 Hz | continuous |
+| Ringback | 440 + 480 Hz | 2s on, 4s off |
+| Busy | 480 + 620 Hz | 0.5s on, 0.5s off |
+| Bell 103 answer | 2225 Hz | steady, on answer |
+
+**The busy signal deserves particular care.** §1 calls it the defining
+experience of going online in 1980, and it is the sound the project is
+organised around. It should be exact, and it should come out of the handset.
+
+**A 300-baud connection does not screech.** The warbling handshake everyone
+remembers is V.32/V.34, from a decade later. Bell 103 is two modems holding
+steady tones at each other. This is the single most likely anachronism to creep
+in by instinct, and getting it right is worth more than any other sound here.
+
+**The machine.** The Disk II head recalibration knock on boot — the drive
+banging the head against its stop — then motor whirr and seek chatter. The
+Apple's own speaker, which the emulator already produces.
+
+**And near-silence otherwise.** The Apple II+ has no fan; Woz's switching
+supply was one of the machine's quiet triumphs. The room's only other sound is
+the monitor's flyback whine. Adding a fan hum would be a comfortable, wrong
+instinct.
+
+Recorded drive sounds carry a *reconstruction* label unless sourced from a
+real machine. Generated Bell and Western Electric tones are exact and say so.
+
+### 7.2 The keyboard
+
+**The Apple II+ has no lowercase.** The keyboard could not produce it, so
+typing `hello` sends `HELLO`. This is silent and immediate — the screen shows
+the truth on the first keystroke, and no explanation is needed.
+
+The real software already expects this. CBBS asks every caller at login:
+
+> `CAN YOUR TERMINAL DISPLAY LOWER CASE CHARACTERS, Y/N:`
+
+— `cbbsfunc.asm:222`. A visitor on the Apple II+ answers `N` and the board
+adapts, exactly as a 1980 caller would. The 1981 software handles the 1980
+hardware without any help from us.
+
+The visitor's keyboard maps to the II+ matrix. Keys the machine did not have do
+nothing at all; we never substitute a plausible alternative, because a key that
+silently does something else is the room lying.
+
+**`RESET` is live, and it reboots.** It is placed as an on-screen key rather
+than bound to anything a browser might send, so nobody loses a session to a
+stray keystroke — but pressing it does what it did, with no confirmation.
+
+### 7.3 The telephone
+
+The signature interaction of the project, and until now a single line of spec.
+
+The telephone is an object: handset, rotary dial, and the modem beside it. A
+call is a sequence of physical acts, each taking the time it took.
+
+1. **Lift the handset** — dial tone
+2. **Dial** — ten pulses per second, one pulse per digit, and about 700ms
+   between digits. A `0` alone takes a full second. This is not padding; it is
+   why phone numbers felt long
+3. **Listen** — ringback, or a busy signal, or nothing at all if the far end
+   is down (§10)
+4. **The far end answers** — the 2225 Hz carrier appears in the handset
+5. **Flip the modem to DATA**, and replace the handset
+6. **Connected.** Bytes flow at 300 baud (§4.3)
+
+Hanging up is the reverse: the modem to VOICE, or lifting and replacing the
+handset, and carrier drops.
+
+**The phone's behaviour is driven by the modem, which is room data** (§2). The
+1980 Apple II+ carries a Micromodem II, which is direct-connect — there are no
+handset cups to wrestle with. A room whose machine has an acoustic coupler gets
+that interaction instead, and a 1981+ Hayes Smartmodem dials itself and removes
+steps 1 through 5 entirely. The telephone UI reads the modem spec; it never
+assumes one.
+
+### 7.4 The manuals
+
+The 1980 answer to "how do I use this" was a shelf of binders, and that is the
+help system: period documentation as an object in the room, readable in place.
+
+For the board we already hold the sources — `cookbook.txt`, `cbbsoper.txt`,
+and `1981cbbslist.txt` as the phone book. For the machine, the Apple II
+Reference Manual and the DOS 3.3 manual are the natural companions, subject to
+the same hosting question as curated software (§12).
+
+No tooltips, no modal walkthrough, no coach marks. A visitor who wants to know
+what `CATALOG` does looks it up, which is what everyone did. The museum cards
+of §4.1 and §6.4 remain the one non-diegetic affordance, and they explain the
+room rather than the interface.
+
+### 7.5 Duration is content
+
+**Nothing is fast-forwarded.** DOS 3.3 takes its seconds to boot. `INIT` takes
+about twenty. A rotary `0` takes a full second. A disk at 300 baud takes eighty
+minutes. §4.3 already insists that 300 baud must *feel* like 300 baud; this
+generalises that to everything else, because the waiting is the experience and
+someone will otherwise eventually optimise it away as a defect.
+
+There is no skip button. The one accommodation is practical rather than
+aesthetic: a machine keeps running while its tab is in the background, so an
+eighty-minute transfer does not require watching it. Browsers throttle
+background timers aggressively, and making this work is a real constraint on
+the emulator's timing loop rather than a detail (§12).
+
+## 8. Data flow: one phone call
 
 1. Visitor opens the room page and switches on the Apple II+. The empty Disk II
    grinds (§6.4)
@@ -499,7 +618,7 @@ which one we can source and defensibly host is an open question — see §11.
 8. Visitor reads and posts messages. Posts persist to CBBS's emulated disk.
 9. Hangup, or carrier loss, releases the line for the next caller
 
-## 8. Historical fidelity
+## 9. Historical fidelity
 
 ### Anachronism register
 
@@ -522,7 +641,7 @@ ARPANET, founded by BBN people. When 70snet grows a PDN layer, that is the
 natural bridge to `~/arpanet` — the same lineage ten years later, reached from
 a kid's Apple II instead of an IMP.
 
-## 9. Error handling
+## 10. Error handling
 
 Failures are era-appropriate wherever possible, and honest otherwise.
 
@@ -547,7 +666,7 @@ Failures are era-appropriate wherever possible, and honest otherwise.
 Per project convention: no fallbacks that mask failure, no stubs standing in
 for the real destination, no placeholder data.
 
-## 10. Testing
+## 11. Testing
 
 - **Exchange state machine** — unit tests for dial, ring, answer, busy,
   connect, hangup, carrier loss, line accounting
@@ -567,8 +686,13 @@ for the real destination, no placeholder data.
 - **Export/import** — a box round-trips byte-for-byte, and an exported single
   disk is a valid image outside this project
 - **Transfer** — two visitors move a disk by XMODEM; a third caller gets busy
+- **Uppercase** — typing `hello` at the Apple II+ delivers `HELLO` to the board
+- **Call tones** — dial tone, ringback and busy match their specified
+  frequencies and cadences (§7.1), and the answer tone is a steady 2225 Hz
+- **Background tabs** — a transfer in progress continues at correct speed with
+  the tab hidden
 
-## 11. Risks and open questions
+## 12. Risks and open questions
 
 1. **CBBS clock card.** CBBS wants a Scitronics or CompuTime clock. Whether
    the chosen S-100 emulator can present one, or whether the clock code needs
@@ -594,12 +718,25 @@ for the real destination, no placeholder data.
 7. **The apple2ts disk seam.** The serial seam was verified by reading the code.
    The insert/eject and write-back seam has *not* been, and §6.3 assumes it is
    as clean. Verify before committing to an estimate.
-8. **Curating the 1980 box.** Choosing real, datable software we are comfortable
+8. **Phones, tablets and accessibility.** Deferred deliberately, not overlooked.
+   An Apple II is nothing but keyboard, and a device without one cannot use this
+   room; forty columns of uppercase text behind a CRT shader is also hard to
+   read before considering low vision. These are obligations of being a public
+   website rather than authenticity questions, and they deserve their own design
+   pass before launch — not a hurried subsection here.
+9. **Background-tab throttling.** §7.5 requires a machine to keep running at
+   correct speed while its tab is hidden, or an eighty-minute transfer becomes
+   impossible in practice. Browsers throttle timers in background tabs
+   aggressively. Unverified against apple2ts's timing loop.
+10. **Manual and documentation hosting.** §7.4 puts the Apple II Reference
+   Manual and the DOS 3.3 manual in the room. Same hosting question as curated
+   software, and unresolved for the same reason.
+11. **Curating the 1980 box.** Choosing real, datable software we are comfortable
    hosting is most of what makes the room good, and it is unstarted. Visitor
    uploads (§6.6) reduce the pressure but do not remove it — a visitor arriving
    to an empty room has nothing to do.
 
-## 12. Future rooms
+## 13. Future rooms
 
 Sketched only, to keep the engine honest — not commitments:
 
