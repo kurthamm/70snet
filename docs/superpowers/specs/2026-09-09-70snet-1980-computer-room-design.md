@@ -64,13 +64,26 @@ these machines for years, and a disk box accumulated across the whole era; a
 box frozen at one year would be an artifact of how we drew the rooms rather
 than anything true. The general rule the two cases share:
 
-> **Shared and contended things are pinned to an era. Private possessions
-> accumulate across them.**
+> **What is contended in the moment is pinned to an era. What accumulates
+> crosses them.**
 
-Destinations, phone lines and message bases are contended, and scarcity needs
-visitors concentrated at the same point in time — a busy signal only happens
-because someone else is on the line right now. Nobody contends for your
-floppies. So a room governs **what you can reach, never what you own.** See §6.
+**The axis is simultaneity, not sharing.** Phone lines are contended in the
+moment, and scarcity needs visitors concentrated at the same point in time — a
+busy signal only happens because someone else is on the line right now. Nobody
+contends for your floppies.
+
+A message base is shared but *not* contended: it accumulates, and §5.3 requires
+a 1983 room to read what 1980 wrote. So what is pinned to an era is the **line**,
+never the **record**:
+
+| | Keyed by | Filtered by |
+|---|---|---|
+| Call occupancy (§5.5) | destination **and era** | — |
+| Message base (§5.3) | destination | `messageDate <= room.date` |
+| The visitor's box (§6.2) | the visitor | `acquired <= room.date` |
+
+The last two rows are the same rule applied to a shared record and a private
+possession. A room governs **what you can reach, never what you own.** See §6.
 
 ## 3. Scope of the first build
 
@@ -157,10 +170,16 @@ actively maintained). Verified 2026-09-09 to contain:
 **Our modification:** add a third serial backend — a WebSocket to the exchange.
 This is roughly forty lines at exactly the right seam. No structural fork.
 
-**A visitor can dial with no software at all.** The card's full 2K firmware is
-present, and that firmware includes Terminal Mode: `IN#2`, then Ctrl-A T, and
-the Apple is a dumb terminal. So the disk box is not what makes v1 work — it is
-what makes the room worth being in, and what everything past dialing requires.
+**A visitor can dial without any communications software.** The card's full 2K
+firmware is present, and it includes Terminal Mode: `IN#2` at a BASIC prompt,
+then Ctrl-A T, and the Apple is a dumb terminal.
+
+Reaching that prompt is itself a deliberate act on this machine. The Disk II
+grinds at power-on (§6.4) and never gets to `]` on its own; `RESET` (§7.2)
+breaks out of the boot attempt into Applesoft. So dialling needs no diskette,
+but it does need the visitor to know that — which is what §7.4's manuals are
+for. The disk box is not what makes v1 work; it is what makes the room worth
+being in, and what everything past dialling requires.
 File transfer in particular needs real comms software on a diskette. See §6.7.
 
 Rejected: `apple2js` (whscullin, also MIT) has no serial card at all — its
@@ -339,7 +358,7 @@ interface Medium {
   title?: string          // catalogue information, for the honesty card
   publisher?: string
   released?: string       // when the software came out
-  acquired: string        // in-fiction date it entered this box
+  acquired: string | "undated"  // in-fiction date it entered this box
   writeProtected: boolean // the notch — real state, not decoration
   provenance: "curated" | "uploaded" | "formatted" | "received"
   fidelity?: "real-software" | "reconstruction"   // curated media only
@@ -365,6 +384,11 @@ special case anyone codes.
 
 Visibility keys off `acquired` rather than `released`, because owning a 1977
 disk you were given in 1982 is ordinary. `released` is text on the label.
+
+`acquired` is an ISO date for dated media, and the literal `"undated"` for an
+upload whose year the visitor did not supply (§6.6). The comparator is defined
+for both: `"undated"` is visible in every room, and every other value is
+compared as `acquired <= room.date`. There is no third case and no default.
 
 **Rooms declare a starter set.** `room.starterMedia` is the curated exhibit,
 and entering a room for the first time puts those disks in the box, dated to
@@ -423,6 +447,18 @@ holding metadata and image bytes, and a `machines` store holding what is in
 which drive. On first use we call `navigator.storage.persist()` so the browser
 treats the data as worth keeping rather than as evictable cache.
 
+That call has three outcomes and they are deliberately distinguished, because
+conflating them is how a visitor loses an evening's work to something we said
+nothing about:
+
+- **Resolves `true`** — the data is exempt from eviction. Nothing to say.
+- **Resolves `false`, or the API is absent** — storage works normally, but the
+  browser may evict it under disk pressure. Writes proceed; the disk box
+  carries a line saying these disks are not guaranteed to survive. This is
+  **not** treated as storage being unavailable.
+- **IndexedDB is unavailable, or throws** — the standing banner below. Never a
+  silent in-memory fallback.
+
 An Apple 5.25" image is 143,360 bytes, so a shelf of twenty disks is about
 3 MB against a budget measured in hundreds. Capacity is not a concern.
 
@@ -448,9 +484,17 @@ rather than half-loaded. The visitor then **writes the label**: the text and a
 year, because that is what you did with a disk somebody handed you. Undated
 disks are visible in every room and marked as undated.
 
-Uploads are held in the visitor's browser and are never transmitted to us. That
-is a deliberate posture as well as a simple one: we host only what we curated
-and can defend.
+**Uploads are never sent to us in the course of being stored or used** — an
+uploaded disk goes from the visitor's machine into their own browser and stays
+there.
+
+The one path by which disk bytes cross our infrastructure is a transfer
+(§6.7), where the exchange relays them between two visitors. There we **retain
+nothing**: disk contents are never written to logs, never persisted, and exist
+in the relay only as the buffer needed to pass them along. The exchange is a
+switchboard, and a switchboard does not keep the call.
+
+So we host only what we curated and can defend.
 
 **Export**, in two forms, both of them the visitor's to keep:
 
@@ -677,8 +721,10 @@ for the real destination, no placeholder data.
 - **End-to-end** — a headless client dials CBBS through the exchange and
   asserts the real login sequence appears
 - **Persistence** — a posted message survives a host restart
+- **Cross-era messages** — a message written in the 1980 room is visible in the
+  1983 room; a message written in 1983 is absent from 1980
 - **Era visibility** — a disk acquired in 1983 is absent from the 1980 room,
-  and present in 1983
+  and present in 1983; an `"undated"` disk is present in both
 - **Write protection** — a write to a notched disk fails and the stored image
   is byte-identical afterwards
 - **Storage round-trip** — a formatted disk survives a reload; a blocked
