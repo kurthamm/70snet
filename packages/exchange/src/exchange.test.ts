@@ -70,4 +70,26 @@ describe("Exchange", () => {
     const r = await x.dial("alice", D, CBBS.number)
     expect(r.outcome).toBe("out-of-service")
   })
+
+  it("releases the line when the destination dies mid-call, so the destination is not stuck busy forever", async () => {
+    let failureCb: ((err: Error) => void) | undefined
+    const line = fakeLine({
+      onFailure: vi.fn((cb: (err: Error) => void) => {
+        failureCb = cb
+      }),
+    })
+    const x = new Exchange({ destinations: DESTINATIONS, hosts: hosts(line) })
+
+    const first = await x.dial("alice", D, CBBS.number)
+    expect(first.outcome).toBe("connected")
+    expect(x.occupancy("cbbs@0")).toBe(1)
+
+    expect(failureCb).toBeDefined()
+    failureCb!(new Error("carrier lost"))
+
+    expect(x.occupancy("cbbs@0")).toBe(0)
+
+    const second = await x.dial("bob", D, CBBS.number)
+    expect(second.outcome).toBe("connected")
+  })
 })

@@ -32,4 +32,16 @@ describe("destination eras", () => {
     expect(book.map(e => e.name)).toContain("CBBS")
     expect(book[0]!.fidelity).toBe("real-software")
   })
+
+  it("returns a phone book entry whose speeds array is a copy, not a shared reference to the registry's era", () => {
+    const era = eraFor(CBBS, ROOM_1980.date)!
+    const book = phoneBook(DESTINATIONS, ROOM_1980.date)
+    const entry = book.find(e => e.name === "CBBS")!
+
+    expect(entry.speeds).not.toBe(era.speeds)
+
+    entry.speeds.push(9999)
+    expect(era.speeds).not.toContain(9999)
+    expect(eraFor(CBBS, ROOM_1980.date)!.speeds).not.toContain(9999)
+  })
 })

@@ -12,12 +12,24 @@ const CARRIER = 0x03
 const OFFHOOK = 0x04
 
 const HEADER = 3 // type u8 + length u16be
+const MAX_PAYLOAD = 0xffff
+
+export class FramePayloadTooLargeError extends Error {
+  constructor(length: number) {
+    super(`line frame payload of ${length} bytes exceeds the 16-bit length header limit of ${MAX_PAYLOAD} bytes`)
+    this.name = "FramePayloadTooLargeError"
+  }
+}
 
 export function encodeFrame(frame: LineFrame): Uint8Array {
   const payload =
     frame.type === "data" ? frame.bytes
     : frame.type === "ring" ? new Uint8Array(0)
     : new Uint8Array([frame.on ? 1 : 0])
+
+  if (payload.length > MAX_PAYLOAD) {
+    throw new FramePayloadTooLargeError(payload.length)
+  }
 
   const type =
     frame.type === "data" ? DATA

@@ -66,15 +66,25 @@ export class Exchange {
     }
 
     this.calls.set(callerId, { eraKey, line, abort })
+    // The destination can die mid-call (emulated machine crashes, carrier
+    // lost) with nobody calling hangup(). Without this, the line stays
+    // permanently busy and the destination becomes uncallable forever.
+    line.onFailure(() => this.releaseCall(callerId))
     return { outcome: "connected", eraKey, baud, line }
   }
 
   hangup(callerId: string): void {
     const call = this.calls.get(callerId)
     if (call === undefined) return
-    this.calls.delete(callerId)
     call.abort.abort()
     call.line.hangup()
+    this.releaseCall(callerId)
+  }
+
+  private releaseCall(callerId: string): void {
+    const call = this.calls.get(callerId)
+    if (call === undefined) return
+    this.calls.delete(callerId)
     this.release(call.eraKey)
   }
 

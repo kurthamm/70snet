@@ -42,7 +42,7 @@ export function phoneBook(ds: Destination[], date: string): PhoneBookEntry[] {
   for (const d of ds) {
     const era = eraFor(d, date)
     if (era === null) continue
-    out.push({ name: d.name, number: d.number, fidelity: era.fidelity, speeds: era.speeds })
+    out.push({ name: d.name, number: d.number, fidelity: era.fidelity, speeds: [...era.speeds] })
   }
   return out
 }
