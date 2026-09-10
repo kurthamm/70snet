@@ -301,7 +301,7 @@ gate from spec §11."
 ## Task 2: Workspace, and the line protocol
 
 **Files:**
-- Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `vitest.config.ts`
+- Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `tsconfig.json`
 - Create: `packages/protocol/src/line.ts`, `packages/protocol/src/client.ts`
 - Test: `packages/protocol/src/line.test.ts`
 
@@ -347,6 +347,17 @@ packages:
     "vitest": "^2.1.0",
     "@types/node": "^22.0.0"
   }
+}
+```
+
+`tsconfig.json` — the root project, needed for `pnpm typecheck` (`tsc -b`) to
+resolve anything. Add one `references` entry per package as later tasks create
+them; it starts with just `protocol`:
+
+```json
+{
+  "files": [],
+  "references": [{ "path": "packages/protocol" }]
 }
 ```
 
@@ -611,6 +622,26 @@ Expected: FAIL — cannot resolve `./pacer`.
 
 - [ ] **Step 3: Implement**
 
+**Do not use `setInterval` with a fractional delay.** 300 baud at 10 bits per
+character is 33.333ms, and both Node and vitest's fake timers truncate a
+fractional delay to whole milliseconds — so `setInterval(fn, 33.333)` fires its
+first tick at 33ms, failing the test above, and then drifts steadily out of true
+300-baud timing. Over the eighty-minute transfer §7.5 describes, that drift is
+minutes. Pre-dividing into a float is also unsafe: `30 * (10 * 1000 / 300)`
+evaluates to `1000.0000000000001`.
+
+Schedule each character against its own cumulative deadline instead, computed
+from integer numerator and denominator:
+
+```ts
+private deadline(n: number): number {
+  return Math.ceil((n * this.msNumerator) / this.bitsPerSecond)
+}
+```
+
+where `msNumerator = bitsPerChar * 1000`. Each timeout is
+`deadline(n) - deadline(n - 1)`, so rounding never accumulates.
+
 `packages/protocol/src/pacer.ts`:
 
 ```ts
@@ -621,8 +652,22 @@ Expected: FAIL — cannot resolve `./pacer`.
  *  and do not "catch up" after a stall. */
 export class BaudPacer {
   private queue: number[] = []
-  private timer: ReturnType<typeof setInterval> | null = null
-  private readonly msPerChar: number
+  private timer: ReturnType<typeof setTimeout> | null = null
+  // Deadlines are computed as ceil((n * msNumerator) / bitsPerSecond) rather
+  // than from a pre-divided "ms per char" float. A fixed fractional interval
+  // (e.g. 300 baud, 10 bits/char = 33.333...ms) cannot be handed to
+  // setInterval/setTimeout directly: both Node and fake timers truncate a
+  // fractional delay to whole milliseconds, so a naive setInterval(fn,
+  // 33.333) fires its first tick at 33ms, not 34ms, and then drifts out of
+  // sync with true 300-baud timing over a long run. Keeping the numerator and
+  // denominator separate (instead of pre-dividing into a float) also avoids
+  // floating-point rounding error compounding across many characters — e.g.
+  // 30 * (10*1000/300) rounds to slightly over 1000 in IEEE 754, which would
+  // push the 30th character's deadline to 1001ms instead of the true 1000.
+  private readonly msNumerator: number
+  private readonly bitsPerSecond: number
+  // Count of characters whose delivery has been scheduled in the current run.
+  private charsScheduled = 0
 
   constructor(
     bitsPerSecond: number,
@@ -631,7 +676,8 @@ export class BaudPacer {
   ) {
     if (bitsPerSecond <= 0) throw new Error(`bitsPerSecond must be positive, got ${bitsPerSecond}`)
     if (bitsPerChar <= 0) throw new Error(`bitsPerChar must be positive, got ${bitsPerChar}`)
-    this.msPerChar = (bitsPerChar * 1000) / bitsPerSecond
+    this.bitsPerSecond = bitsPerSecond
+    this.msNumerator = bitsPerChar * 1000
   }
 
   get pending(): number {
@@ -645,23 +691,38 @@ export class BaudPacer {
 
   stop(): void {
     this.queue.length = 0
+    this.charsScheduled = 0
     if (this.timer !== null) {
-      clearInterval(this.timer)
+      clearTimeout(this.timer)
       this.timer = null
     }
   }
 
   private ensureRunning(): void {
     if (this.timer !== null) return
-    this.timer = setInterval(() => {
+    this.charsScheduled = 0
+    this.scheduleNext()
+  }
+
+  private deadline(n: number): number {
+    return Math.ceil((n * this.msNumerator) / this.bitsPerSecond)
+  }
+
+  private scheduleNext(): void {
+    const n = this.charsScheduled + 1
+    const delay = this.deadline(n) - this.deadline(n - 1)
+
+    this.timer = setTimeout(() => {
+      this.timer = null
       const b = this.queue.shift()
       if (b === undefined) {
-        clearInterval(this.timer!)
-        this.timer = null
+        this.charsScheduled = 0
         return
       }
+      this.charsScheduled = n
       this.sink(new Uint8Array([b]))
-    }, this.msPerChar)
+      if (this.queue.length > 0) this.scheduleNext()
+    }, delay)
   }
 }
 ```
