@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-09
 **Status:** Approved in brainstorming; awaiting spec review
+**Revised:** 2026-09-09 — added §6 (media and the disk box); revised §2, §3
 **First room:** Fall 1980
 
 ## 1. Purpose
@@ -47,6 +48,8 @@ reads. Anything that differs between eras belongs in that definition:
 | Dialing convention | Manual dial (1980), Hayes `AT` autodial (1981+) |
 | Line speed | 300 baud (1980), 1200 baud (1983), 2400 (1985) |
 | Phone book | Real period BBS lists |
+| Media and drives | Two Disk II drives (1980); cassette port only (1977) |
+| Starter media | The curated box of diskettes a visitor finds in that room |
 
 The 1980 room is the first instance of the engine, not the engine itself. Any
 design decision that cannot survive a second room is wrong.
@@ -55,6 +58,19 @@ Note that **destinations are deliberately absent from that table.** The online
 services spanned many years and many machines, so they are not a property of
 any one room. A room declares its year; the destination registry decides what
 was reachable then. See §5.
+
+**The visitor's diskettes are absent for the opposite reason.** People owned
+these machines for years, and a disk box accumulated across the whole era; a
+box frozen at one year would be an artifact of how we drew the rooms rather
+than anything true. The general rule the two cases share:
+
+> **Shared and contended things are pinned to an era. Private possessions
+> accumulate across them.**
+
+Destinations, phone lines and message bases are contended, and scarcity needs
+visitors concentrated at the same point in time — a busy signal only happens
+because someone else is on the line right now. Nobody contends for your
+floppies. So a room governs **what you can reach, never what you own.** See §6.
 
 ## 3. Scope of the first build
 
@@ -65,15 +81,25 @@ layer completely before the others is the wrong order.
 **In scope for v1:**
 
 - The room page, showing the 1980 room, with only the Apple II+ live
-- Apple II+ running in the visitor's browser, booting authentically to `]`
+- Apple II+ running in the visitor's browser, booting authentically — which
+  means an empty Disk II grinding until the visitor puts a diskette in it
+- A disk box: curated diskettes, insert and eject, the write-protect notch
+- Diskettes kept in the visitor's own browser, and exportable as files
+- Visitor uploads of their own disk images
 - An on-screen telephone and a period phone book
 - The telephone exchange on the server
 - CBBS as the single destination — one phone line, real busy signals
+- Machine-to-machine calls: XMODEM disk transfer between two visitors
 - Persistent messages: what a visitor posts is still there tomorrow
 
 **Explicitly deferred:** the other five machines; Telenet and Tymnet;
 CompuServe, The Source, Dow Jones; cassette loading; the Epson MX-80 printer;
-VisiCalc and other application software; additional rooms.
+VisiCalc and other application software; additional rooms; visitors sharing
+disk boxes through our server rather than over the phone.
+
+**Not deferred but impossible:** downloading files from a board. CBBS has no
+file transfer of any kind — see §5.7 — so in this era a disk moves between two
+people who call each other directly, which is what XMODEM was written for.
 
 If the slice works, adding the CBM 8032 and Forum-80 is repetition rather than
 invention. If it fails, it fails somewhere cheap.
@@ -130,6 +156,12 @@ actively maintained). Verified 2026-09-09 to contain:
 
 **Our modification:** add a third serial backend — a WebSocket to the exchange.
 This is roughly forty lines at exactly the right seam. No structural fork.
+
+**A visitor can dial with no software at all.** The card's full 2K firmware is
+present, and that firmware includes Terminal Mode: `IN#2`, then Ctrl-A T, and
+the Apple is a dumb terminal. So the disk box is not what makes v1 work — it is
+what makes the room worth being in, and what everything past dialing requires.
+File transfer in particular needs real comms software on a diskette. See §6.7.
 
 Rejected: `apple2js` (whscullin, also MIT) has no serial card at all — its
 card set is CFFA, Disk II, language card, mouse, NSC, parallel, RAMFactor,
@@ -270,21 +302,204 @@ are not.
 This produces exactly the right texture: the hobbyist boards are precious and
 contended; the commercial services are always open and cost money by the hour.
 
-## 6. Data flow: one phone call
+### 5.7 What the boards could not do
 
-1. Visitor opens the room page; the Apple II+ boots in their browser to `]`
-2. Visitor looks up CBBS in the phone book and dials it on the on-screen phone
-3. The browser opens a WebSocket to the exchange and requests that number
-4. The exchange checks CBBS's line count
+**Verified 2026-09-09: CBBS has no file transfer.** Across all thirty `.ASM`
+files there is no reference to XMODEM, download, upload, or file transfer of any
+kind. `CBBSRTRV.ASM` retrieves *messages*, not files. CBBS was a message system
+and nothing else, which matches the history: XMODEM shipped separately as
+Christensen's `MODEM.ASM`, and the file-trading boards came later.
+
+Adding downloads to CBBS would mean modifying it, which would forfeit the *real
+software* claim that §10 makes the gate on this project. We will not do it.
+
+The period-correct answer is better anyway. In 1980 you did not download a disk
+from a board — **you called the other person.** You arranged it in advance, both
+sides ran `MODEM.ASM`, one typed send and the other typed receive, and the file
+crossed at 300 baud. That is precisely what Christensen wrote XMODEM for in
+1977: so he and Suess could exchange files. See §6.7.
+
+## 6. Media: the diskettes and the box
+
+The machines have no hard drives. Software came on removable media, and a
+visitor who cannot handle that media cannot do anything past dialling.
+
+### 6.1 Media, not diskettes
+
+The engine's unit is a **medium** — one physical thing you can hold — because
+§12's 1977 room is cassette-only and a diskette-shaped abstraction would not
+survive it:
+
+```ts
+interface Medium {
+  id: string
+  kind: "diskette-5.25" | "diskette-8" | "cassette" | "cartridge"
+  format: "dsk" | "do" | "po" | "woz" | "nib" | "wav"
+  label: string           // what is written on it, in marker
+  title?: string          // catalogue information, for the honesty card
+  publisher?: string
+  released?: string       // when the software came out
+  acquired: string        // in-fiction date it entered this box
+  writeProtected: boolean // the notch — real state, not decoration
+  provenance: "curated" | "uploaded" | "formatted" | "received"
+  fidelity?: "real-software" | "reconstruction"   // curated media only
+}
+```
+
+`provenance` drives the honesty label, extending §4.1's museum convention from
+destinations to media. We vouch for curated media and say whether each is real
+or reconstructed. An uploaded disk's card says plainly that a visitor brought
+it and that we make no claim about it — which is both honest and the only
+defensible posture, since we never inspected it.
+
+### 6.2 The box is private, and it accumulates
+
+A visitor's box is theirs. Per the rule in §2, it is not pinned to a room: it
+follows them between eras and grows.
+
+**Visibility is `acquired <= room.date`.** This is not a new rule — it is §5's
+lifespan rule pointed at a different object. In the 1983 room you see
+everything you have collected; step back into 1980 and the later disks are
+absent, because in 1980 you did not have them yet. No time travel, and no
+special case anyone codes.
+
+Visibility keys off `acquired` rather than `released`, because owning a 1977
+disk you were given in 1982 is ordinary. `released` is text on the label.
+
+**Rooms declare a starter set.** `room.starterMedia` is the curated exhibit,
+and entering a room for the first time puts those disks in the box, dated to
+that room. The 1980 room supplies a DOS 3.3 System Master and some blanks;
+entering 1983 later adds what an owner would have bought since. The box fills
+the way a real one did.
+
+### 6.3 The drives
+
+Drives are declared by the machine in room data, never assumed:
+
+```ts
+interface DriveSpec { slot: number; drive: number; accepts: Medium["kind"][] }
+interface Drive { spec: DriveSpec; loaded: Medium | null; doorOpen: boolean; motorOn: boolean }
+```
+
+The 1980 Apple II+ declares a Disk II controller in slot 6 with two drives. A
+1977 machine declares a cassette port, and the same code paths serve it.
+
+Insert and eject are physical: drag a disk from the box to the drive, the door
+lever swings shut, the light comes on when the motor runs. There is no "load
+image" menu anywhere in the room. **What is in a drive is machine state and it
+persists** — leave a disk in overnight and it is still there tomorrow, which is
+what everyone did.
+
+**Swapping a disk while the motor runs is allowed, and it does what it did.**
+We do not block it, warn about it, or quietly re-sync the image. The emulator
+sees the swap and DOS reacts however DOS reacted.
+
+**The write-protect notch is enforced honestly.** A covered notch fails the
+write at the hardware level and DOS prints its own `I/O ERROR`. We never accept
+a write and silently drop it. Writes to unprotected disks are saved back to the
+box on a short debounce, so the curated exhibit cannot be damaged — a visitor
+who wants to modify one copies it to a blank first, which is what `COPYA` on
+the System Master was for.
+
+### 6.4 Power-on, and the empty drive
+
+**A machine powered on with an empty drive grinds.** The light comes on, the
+head knocks, and nothing happens, forever. That is what a Disk II did with no
+diskette in it, and it is the same wall every owner hit once.
+
+To keep that reading as a broken 1980 rather than a broken website, the room
+carries a museum card beside the machine — the same convention §4.1 already
+establishes, so it costs no new idea:
+
+> **APPLE II PLUS**, 1979. There is no software in the machine. Software came
+> on diskettes; try the box.
+
+That is a label on an exhibit, not a tooltip in a web app. The room survives.
+
+### 6.5 Where diskettes are kept
+
+**In the visitor's own browser**, in IndexedDB: one database, a `media` store
+holding metadata and image bytes, and a `machines` store holding what is in
+which drive. On first use we call `navigator.storage.persist()` so the browser
+treats the data as worth keeping rather than as evictable cache.
+
+An Apple 5.25" image is 143,360 bytes, so a shelf of twenty disks is about
+3 MB against a budget measured in hundreds. Capacity is not a concern.
+
+This is also the thesis made literal: **the disks never leave the house.**
+Nothing about the visitor's machine crosses the internet — only the phone call.
+
+The limits are real and get disclosed rather than hidden. The box is tied to
+one browser on one device; clearing site data erases it; a private window
+discards it on close. §6.6 exists because of that.
+
+If IndexedDB is unavailable or blocked, we do **not** quietly fall back to
+memory and let a visitor lose an evening's work. A standing banner says so
+plainly: *your browser is not storing site data; anything you save will be gone
+when you close this tab.* Disclosed, never masked. A quota failure is a named
+error, never a dropped write.
+
+### 6.6 Arrival and departure
+
+**Uploads.** A visitor drags a disk image onto the box. Format and size are
+checked against the `kind` — a 5.25" Apple disk is 143,360 bytes, a `.woz` is
+checked by header — and anything unidentifiable is rejected by name and reason
+rather than half-loaded. The visitor then **writes the label**: the text and a
+year, because that is what you did with a disk somebody handed you. Undated
+disks are visible in every room and marked as undated.
+
+Uploads are held in the visitor's browser and are never transmitted to us. That
+is a deliberate posture as well as a simple one: we host only what we curated
+and can defend.
+
+**Export**, in two forms, both of them the visitor's to keep:
+
+- **The whole box** as one file — a zip of `manifest.json` plus the images.
+  This is the answer to a cleared browser, and it is how a box moves to another
+  device.
+- **A single disk** as its raw `.dsk` or `.woz`, which opens in any Apple II
+  emulator. No lock-in: you can walk away with your floppies.
+
+### 6.7 Transfer is a phone call
+
+Since no board of this era served files (§5.7), a disk moves the way it really
+moved: **one visitor calls another.** Your machine has a phone number in the
+room's exchange. Someone dials it, your Apple answers, both sides run their
+comms software, and XMODEM carries the disk at 300 baud — about eighty minutes
+for a full floppy, which people genuinely left running overnight.
+
+The machinery is almost entirely machinery we already have. **To the exchange,
+a visitor's machine is a destination with one line.** Same call setup, same
+carrier handshake, same busy signal as CBBS, all of it described in §4.3. If
+someone is already calling you, the next caller gets a busy signal, because you
+have one phone line like everybody else. Same-era only, per §5.4.
+
+We never hold the file: the bytes cross between two browsers through the
+switchboard and land in the receiving box as `provenance: "received"`.
+
+**This gates on comms software.** The Super Serial Card's firmware terminal
+mode (§4.2) is enough to dial and read a board, but not to transfer a file.
+Transfer needs a real terminal program with XMODEM on an Apple diskette, and
+which one we can source and defensibly host is an open question — see §11.
+
+## 7. Data flow: one phone call
+
+1. Visitor opens the room page and switches on the Apple II+. The empty Disk II
+   grinds (§6.4)
+2. Visitor takes the system diskette from the box, puts it in drive 1 and
+   reboots; DOS 3.3 comes up and leaves them at `]`
+3. Visitor looks up CBBS in the phone book and dials it on the on-screen phone
+4. The browser opens a WebSocket to the exchange and requests that number
+5. The exchange checks CBBS's line count
    - **Occupied:** returns a busy signal, audible and visible. Call over.
    - **Free:** reserves the line, returns ring, then CBBS answers
-5. Carrier handshake; the visitor flips the modem to DATA
-6. Bytes now flow: Apple's SSC → serial hub → WebSocket → exchange → CBBS's
+6. Carrier handshake; the visitor flips the modem to DATA
+7. Bytes now flow: Apple's SSC → serial hub → WebSocket → exchange → CBBS's
    emulated serial port, and back, paced at 300 baud
-7. Visitor reads and posts messages. Posts persist to CBBS's emulated disk.
-8. Hangup, or carrier loss, releases the line for the next caller
+8. Visitor reads and posts messages. Posts persist to CBBS's emulated disk.
+9. Hangup, or carrier loss, releases the line for the next caller
 
-## 7. Historical fidelity
+## 8. Historical fidelity
 
 ### Anachronism register
 
@@ -307,7 +522,7 @@ ARPANET, founded by BBN people. When 70snet grows a PDN layer, that is the
 natural bridge to `~/arpanet` — the same lineage ten years later, reached from
 a kid's Apple II instead of an IMP.
 
-## 8. Error handling
+## 9. Error handling
 
 Failures are era-appropriate wherever possible, and honest otherwise.
 
@@ -319,11 +534,20 @@ Failures are era-appropriate wherever possible, and honest otherwise.
   and an operator alert fires. Never a silent failure.
 - **Emulator fails to start** → an explicit page-level error naming the cause.
   No blank screen, no fake terminal.
+- **Empty drive at power-on** → it grinds. Not an error; the intended
+  experience, with a museum card explaining the room rather than the bug.
+- **Unreadable disk image** → a named page-level error saying which disk and
+  why. Never a silently empty drive.
+- **Write to a protected disk** → the write fails at the hardware level and DOS
+  prints its own `I/O ERROR`. Never accepted and dropped.
+- **Browser storage blocked or unavailable** → a standing banner saying nothing
+  will be kept. Never a silent in-memory fallback.
+- **Rejected upload** → named by reason. Never half-loaded.
 
 Per project convention: no fallbacks that mask failure, no stubs standing in
 for the real destination, no placeholder data.
 
-## 9. Testing
+## 10. Testing
 
 - **Exchange state machine** — unit tests for dial, ring, answer, busy,
   connect, hangup, carrier loss, line accounting
@@ -334,29 +558,55 @@ for the real destination, no placeholder data.
 - **End-to-end** — a headless client dials CBBS through the exchange and
   asserts the real login sequence appears
 - **Persistence** — a posted message survives a host restart
+- **Era visibility** — a disk acquired in 1983 is absent from the 1980 room,
+  and present in 1983
+- **Write protection** — a write to a notched disk fails and the stored image
+  is byte-identical afterwards
+- **Storage round-trip** — a formatted disk survives a reload; a blocked
+  IndexedDB raises the banner rather than silently running in memory
+- **Export/import** — a box round-trips byte-for-byte, and an exported single
+  disk is a valid image outside this project
+- **Transfer** — two visitors move a disk by XMODEM; a third caller gets busy
 
-## 10. Risks and open questions
+## 11. Risks and open questions
 
 1. **CBBS clock card.** CBBS wants a Scitronics or CompuTime clock. Whether
    the chosen S-100 emulator can present one, or whether the clock code needs
    stubbing, is unresolved. Stubbing a clock is acceptable; stubbing message
    handling is not.
-2. **Outboard-modem path.** CBBS's skeletal outboard-modem code is documented
-   but unproven by us. If it does not work, we must emulate a PMMI MM-103 or
-   Hayes 80-103A at correct I/O addresses — a real increase in scope.
-3. **Assembling 1981 source.** `LINKASM` and the original toolchain are
-   referenced by the source. Reproducing the build may require period tools
-   running under CP/M.
+2. **Outboard-modem path.** *Reduced, 2026-09-09.* Reading the source shows the
+   path is a supported assembly-time option, not an improvisation: `CBBS.ASM`
+   carries `SERMODM EQU FALSE` alongside `PMMI`, `HAYES` and `IDS`, and
+   `CBBSSUB3.ASM` links `CBBSMODM.ASM` when it is true. `CBBSMODM.ASM` names the
+   hardware exactly — a 6850 ACIA at ports 4/5, and a control port with
+   carrier-in, ring-in and off-hook-out bits. It remains unproven end to end by
+   us, but it is no longer an unknown quantity.
+3. **Assembling 1981 source.** *Reduced, 2026-09-09.* `LINKASM.COM` ships on
+   disk 1 as Intel HEX alongside `LOAD.SUB`, so the toolchain travels with the
+   source. Running it still requires a working CP/M, which is the spike's job.
 4. **CBBS 3.5 vs the 1980 target year.** Accepted and disclosed.
 5. **Hosting.** Undecided. The exchange and CBBS host are long-lived
    processes, which rules out purely serverless hosting for those components.
+6. **Comms software for transfer.** §6.7 needs a real Apple II terminal program
+   with XMODEM, from 1980 or earlier, that we can source and defensibly host.
+   None identified yet. Dialling and reading a board do not depend on this;
+   transferring disks does.
+7. **The apple2ts disk seam.** The serial seam was verified by reading the code.
+   The insert/eject and write-back seam has *not* been, and §6.3 assumes it is
+   as clean. Verify before committing to an estimate.
+8. **Curating the 1980 box.** Choosing real, datable software we are comfortable
+   hosting is most of what makes the room good, and it is unstarted. Visitor
+   uploads (§6.6) reduce the pressure but do not remove it — a visitor arriving
+   to an empty room has nothing to do.
 
-## 11. Future rooms
+## 12. Future rooms
 
 Sketched only, to keep the engine honest — not commitments:
 
 - **1977, the Trinity year** — Apple II, PET 2001, TRS-80 Model I at launch.
-  Cassette tape, 4–16K, no disks, and *no destinations at all*. The room's
+  Cassette tape, 4–16K, no disks, and *no destinations at all*. It is also the
+  check on §6: `kind: "cassette"` must carry the whole room, and if the media
+  model has quietly become diskette-shaped, this is where that shows. The room's
   point is isolation: the machines cannot talk to anything, including each
   other. This is a useful check on the model in §5: the 1977 room's emptiness
   is not a special case anyone codes: CBBS opens in February 1978, so the
